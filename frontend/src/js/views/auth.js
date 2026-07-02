@@ -1,0 +1,295 @@
+import { API } from '../api.js';
+
+const SETUP_KEYS = [
+  'rdg_setup_dismissed',
+  'rdg_setup_product_created',
+  'rdg_setup_referral_seen'
+];
+
+function resetSetupGuide() {
+  SETUP_KEYS.forEach(key => localStorage.removeItem(key));
+}
+
+function renderAuthShell(title, subtitle, body, footer) {
+  return `
+    <div class="auth-shell">
+      <section class="auth-card fade-in">
+        <div class="auth-header">
+          <div class="logo-icon auth-logo">RD</div>
+          <h2>${title}</h2>
+          <p>${subtitle}</p>
+        </div>
+        ${body}
+        ${footer}
+      </section>
+    </div>
+  `;
+}
+
+export class LoginView {
+  async render() {
+    return renderAuthShell(
+      'Bon retour sur RDGESTION',
+      'Connectez-vous pour reprendre la gestion de votre boutique.',
+      `
+        <div id="login-error" class="badge badge-danger auth-error"></div>
+
+        <form id="login-form">
+          <div class="form-group">
+            <label class="form-label" for="login-phone">Identifiant</label>
+            <input class="form-input" type="text" id="login-phone" placeholder="+22890123456 ou vendeur.boutique-123" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-password">Mot de passe</label>
+            <input class="form-input" type="password" id="login-password" placeholder="********" required autocomplete="current-password">
+          </div>
+
+          <button type="submit" class="btn btn-primary auth-submit">Se connecter</button>
+        </form>
+      `,
+      `
+        <div class="auth-footer">
+          Pas encore de compte ? <a href="#/register">Inscrire votre boutique</a>
+        </div>
+      `
+    );
+  }
+
+  async afterRender() {
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('login-error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.style.display = 'none';
+
+      const identifier = document.getElementById('login-phone').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      try {
+        const res = await API.auth.login({ identifier, password });
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+
+        if (res.user.role === 'ADMIN') {
+          try {
+            const categories = await API.categories.list();
+            if (categories.length <= 1) {
+              resetSetupGuide();
+              window.location.hash = '#/onboarding';
+              return;
+            }
+          } catch (e) {
+            console.error('Erreur verification onboarding categories :', e);
+          }
+          window.location.hash = '#/dashboard';
+        } else if (res.user.role === 'SELLER') {
+          window.location.hash = '#/pos';
+        } else {
+          window.location.hash = '#/admin';
+        }
+      } catch (err) {
+        errorEl.textContent = err.message || 'Identifiants invalides.';
+        errorEl.style.display = 'block';
+      }
+    });
+  }
+}
+
+export class RegisterView {
+  async render() {
+    return renderAuthShell(
+      'Créer votre espace boutique',
+      'Quelques informations suffisent pour ouvrir votre espace de gestion.',
+      `
+        <div id="register-error" class="badge badge-danger auth-error"></div>
+
+        <form id="register-form">
+          <div class="form-group">
+            <label class="form-label" for="reg-shop">Nom du commerce</label>
+            <input class="form-input" type="text" id="reg-shop" placeholder="Pharmacie du Point G" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-owner">Nom du propriétaire / gérant</label>
+            <input class="form-input" type="text" id="reg-owner" placeholder="Fatou Diop" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-phone">Numéro de téléphone portable</label>
+            <input class="form-input" type="tel" id="reg-phone" placeholder="+22890123456" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-pass">Mot de passe</label>
+            <input class="form-input" type="password" id="reg-pass" placeholder="8 caractères min, 1 majuscule, 1 chiffre" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-confirm">Confirmer le mot de passe</label>
+            <input class="form-input" type="password" id="reg-confirm" placeholder="Répéter le mot de passe" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-referral">Code parrainage optionnel</label>
+            <input class="form-input" type="text" id="reg-referral" placeholder="RD-BOUTIQUE-123">
+          </div>
+
+          <button type="submit" class="btn btn-primary auth-submit">Créer mon espace</button>
+        </form>
+      `,
+      `
+        <div class="auth-footer">
+          Déjà inscrit ? <a href="#/login">Se connecter</a>
+        </div>
+      `
+    );
+  }
+
+  async afterRender() {
+    const form = document.getElementById('register-form');
+    const errorEl = document.getElementById('register-error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.style.display = 'none';
+
+      const shop_name = document.getElementById('reg-shop').value.trim();
+      const owner_name = document.getElementById('reg-owner').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const password = document.getElementById('reg-pass').value;
+      const password_confirm = document.getElementById('reg-confirm').value;
+      const referral_code = document.getElementById('reg-referral').value.trim() || undefined;
+
+      if (password !== password_confirm) {
+        errorEl.textContent = 'Les deux mots de passe ne correspondent pas.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await API.auth.register({
+          shop_name, owner_name, phone, password, password_confirm, referral_code
+        });
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+        resetSetupGuide();
+        window.location.hash = '#/onboarding';
+      } catch (err) {
+        errorEl.textContent = err.message || 'Erreur lors de l inscription.';
+        errorEl.style.display = 'block';
+      }
+    });
+  }
+}
+
+export class OnboardingView {
+  async render() {
+    return `
+      <div class="onboarding-shell fade-in">
+        <section class="onboarding-card">
+          <div class="onboarding-header">
+            <span class="eyebrow">Etape 1 sur 3</span>
+            <h2>Préparer les catégories de départ</h2>
+            <p>Choisissez les secteurs proches de votre commerce. RDGESTION créera les premières catégories de votre catalogue.</p>
+          </div>
+
+          <div class="setup-progress-track" aria-hidden="true">
+            <div class="setup-progress-bar" style="width: 33%;"></div>
+          </div>
+
+          <div class="onboarding-next-steps" aria-label="Etapes suivantes">
+            <div class="onboarding-step-preview is-active">
+              <strong>1</strong>
+              <span>Catégories</span>
+            </div>
+            <div class="onboarding-step-preview">
+              <strong>2</strong>
+              <span>Premier produit</span>
+            </div>
+            <div class="onboarding-step-preview">
+              <strong>3</strong>
+              <span>Code parrainage</span>
+            </div>
+          </div>
+
+          <form id="onboarding-form">
+            <div class="onboarding-sector-grid">
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Alimentation générale">
+                <span>Alimentation générale</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Pharmacie / Parapharmacie">
+                <span>Pharmacie / Médical</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Quincaillerie / Bricolage">
+                <span>Quincaillerie / Matériaux</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Vêtements / Accessoires / Mode">
+                <span>Vêtements & mode</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Informatique / Téléphonie">
+                <span>Informatique & mobile</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Cosmétiques / Beauté">
+                <span>Cosmétiques & beauté</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Restaurant / Snack / Buvette">
+                <span>Snack / restauration</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Librairie / Papeterie">
+                <span>Librairie / papeterie</span>
+              </label>
+              <label class="sector-checkbox">
+                <input type="checkbox" name="sector" value="Électroménager">
+                <span>Électroménager</span>
+              </label>
+            </div>
+
+            <div class="onboarding-actions">
+              <button type="button" id="onboarding-skip" class="btn btn-secondary">Passer pour l'instant</button>
+              <button type="submit" class="btn btn-primary">Continuer</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    `;
+  }
+
+  async afterRender() {
+    const form = document.getElementById('onboarding-form');
+    const skipBtn = document.getElementById('onboarding-skip');
+
+    const continueToDashboard = async (sectors) => {
+      try {
+        await API.categories.seed(sectors);
+      } catch (err) {
+        console.error('Erreur seed categories onboarding :', err);
+      }
+
+      localStorage.removeItem('rdg_setup_dismissed');
+      window.location.hash = '#/dashboard';
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const checkboxes = document.querySelectorAll('input[name="sector"]:checked');
+      const sectors = Array.from(checkboxes).map(cb => cb.value);
+      await continueToDashboard(sectors);
+    });
+
+    skipBtn.addEventListener('click', async () => {
+      const confirmed = confirm('Passer la configuration des catégories ? Une catégorie Autres sera créée et vous pourrez organiser le catalogue plus tard.');
+      if (!confirmed) return;
+      await continueToDashboard([]);
+    });
+  }
+}

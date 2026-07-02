@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">RDGESTION</title>
+  <desc id="desc">Icône de l'application RDGESTION</desc>
+  <rect width="512" height="512" rx="112" fill="#09090b"/>
+  <rect x="40" y="40" width="432" height="432" rx="88" fill="#18181b" stroke="#27272a" stroke-width="8"/>
+  <path d="M144 342V160h84c44 0 74 25 74 64 0 25-13 45-35 56l48 62h-53l-42-55h-30v55h-46Zm46-92h35c19 0 31-10 31-26s-12-26-31-26h-35v52Z" fill="#f4f4f5"/>
+  <path d="M323 342V160h69c57 0 96 36 96 91s-39 91-96 91h-69Zm46-40h21c31 0 51-20 51-51s-20-51-51-51h-21v102Z" fill="#a3a3a3"/>
+  <path d="M111 390h290" stroke="#0f766e" stroke-width="18" stroke-linecap="round"/>
+</svg>

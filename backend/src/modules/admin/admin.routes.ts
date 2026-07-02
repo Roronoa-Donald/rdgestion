@@ -1,0 +1,78 @@
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { subscriptionsController, referralsController, adminController } from './admin.controller';
+import { authenticate } from '../../middlewares/auth';
+import { authorize } from '../../middlewares/rbac';
+import { checkTenantActive } from '../../middlewares/tenant';
+import { auditDecorator } from '../../middlewares/audit';
+
+export async function adminRoutes(fastify: FastifyInstance) {
+  fastify.addHook('preHandler', auditDecorator);
+
+  // ─── Abonnements ───────────────────────────────────────────
+  // Obtenir l'abonnement actuel (ADMIN de la boutique)
+  fastify.get('/subscriptions/current', {
+    preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive]
+  }, (request: FastifyRequest, reply: FastifyReply) => subscriptionsController.getCurrent(request, reply));
+
+  // Activer un abonnement PRO pour une boutique (SUPERADMIN uniquement)
+  fastify.post('/subscriptions/:tenantId/activate', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['tenantId'],
+        properties: { tenantId: { type: 'string' } },
+        additionalProperties: false
+      },
+      body: {
+        type: 'object',
+        required: ['billing_type'],
+        properties: { billing_type: { type: 'string', enum: ['MONTHLY', 'LIFETIME'] } },
+        additionalProperties: false
+      }
+    },
+    preHandler: [authenticate, authorize(['SUPERADMIN'])]
+  }, (request: FastifyRequest<any>, reply: FastifyReply) => subscriptionsController.activatePro(request, reply));
+
+  // ─── Parrainage ────────────────────────────────────────────
+  // Obtenir les informations de parrainage (ADMIN de la boutique)
+  fastify.get('/referrals', {
+    preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive]
+  }, (request: FastifyRequest, reply: FastifyReply) => referralsController.getInfo(request, reply));
+
+  // ─── Panel SuperAdmin ──────────────────────────────────────
+  // Liste de toutes les boutiques (SUPERADMIN)
+  fastify.get('/tenants', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', minimum: 1, default: 1 },
+          limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+          search: { type: 'string' },
+          status: { type: 'string', enum: ['active', 'inactive'] }
+        },
+        additionalProperties: false
+      }
+    },
+    preHandler: [authenticate, authorize(['SUPERADMIN'])]
+  }, (request: FastifyRequest<any>, reply: FastifyReply) => adminController.listTenants(request, reply));
+
+  // Activer / désactiver une boutique (SUPERADMIN)
+  fastify.patch('/tenants/:id', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string' } },
+        additionalProperties: false
+      },
+      body: {
+        type: 'object',
+        required: ['is_active'],
+        properties: { is_active: { type: 'boolean' } },
+        additionalProperties: false
+      }
+    },
+    preHandler: [authenticate, authorize(['SUPERADMIN'])]
+  }, (request: FastifyRequest<any>, reply: FastifyReply) => adminController.toggleTenantStatus(request, reply));
+}
