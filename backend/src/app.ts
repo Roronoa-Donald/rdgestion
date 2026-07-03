@@ -81,23 +81,29 @@ async function bootstrapSuperAdmin() {
 
 // 1. Enregistrer le plugin d'initialisation asynchrone (Base de données, migrations, Super Admin)
 fastify.register(async () => {
+  console.log('[Boot Plugin] Starting database connection check...');
   const dbConnected = await checkDatabaseConnection();
   if (!dbConnected) {
-    console.error('❌ Impossible de se connecter à PostgreSQL.');
+    console.error('❌ [Boot Plugin] Impossible de se connecter à PostgreSQL.');
     if (!process.env.VERCEL) {
       process.exit(1);
     }
     return;
   }
+  console.log('✅ [Boot Plugin] Database connection verified.');
 
   // Les migrations ne doivent pas être exécutées au runtime sur Vercel (fichiers SQL non packagés, performance/timeouts)
   if (!process.env.VERCEL) {
+    console.log('[Boot Plugin] Environment is not Vercel. Running database migrations...');
     await runMigrations();
+    console.log('✅ [Boot Plugin] Database migrations completed.');
   } else {
-    console.log('ℹ️ Environnement Vercel détecté : exécution des migrations ignorée au runtime.');
+    console.log('ℹ️ [Boot Plugin] Vercel environment detected: skipping runtime database migrations.');
   }
 
+  console.log('[Boot Plugin] Running SuperAdmin bootstrap...');
   await bootstrapSuperAdmin();
+  console.log('🎉 [Boot Plugin] SuperAdmin bootstrap finished.');
 });
 
 // 2. Enregistrer les plugins de sécurité et utilitaires généraux
