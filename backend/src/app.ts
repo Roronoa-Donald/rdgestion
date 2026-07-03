@@ -79,144 +79,139 @@ async function bootstrapSuperAdmin() {
   }
 }
 
-/**
- * Configure et démarre l'application Fastify.
- */
-async function startServer() {
-  try {
-    // 1. Valider la connexion à la base de données
-    const dbConnected = await checkDatabaseConnection();
-    if (!dbConnected) {
-      process.exit(1);
+// 1. Enregistrer le plugin d'initialisation asynchrone (Base de données, migrations, Super Admin)
+fastify.register(async () => {
+  const dbConnected = await checkDatabaseConnection();
+  if (!dbConnected) {
+    console.error('❌ Impossible de se connecter à PostgreSQL.');
+    process.exit(1);
+  }
+  await runMigrations();
+  await bootstrapSuperAdmin();
+});
+
+// 2. Enregistrer les plugins de sécurité et utilitaires généraux
+fastify.register(fastifyHelmet);
+fastify.register(registerCors);
+
+// Rate Limiting global
+fastify.register(fastifyRateLimit, rateLimitConfig);
+
+// Support Multi-part pour l'upload des images de produits
+fastify.register(fastifyMultipart, {
+  limits: {
+    fileSize: env.UPLOAD_MAX_SIZE, // Max 2Mo par défaut
+    files: 1,
+  },
+});
+
+// 3. Enregistrer la documentation Swagger
+fastify.register(registerSwagger);
+
+// 4. Enregistrer les routes applicatives
+fastify.register(authRoutes, { prefix: '/api/auth' });
+fastify.register(productsRoutes, { prefix: '/api/products' });
+fastify.register(categoriesRoutes, { prefix: '/api/categories' });
+fastify.register(salesRoutes, { prefix: '/api/sales' });
+fastify.register(dashboardRoutes, { prefix: '/api/dashboard' });
+fastify.register(logsRoutes, { prefix: '/api/logs' });
+fastify.register(notificationsRoutes, { prefix: '/api/notifications' });
+fastify.register(settingsRoutes, { prefix: '/api/settings' });
+fastify.register(adminRoutes, { prefix: '/api/admin' });
+
+// 5. Servir les fichiers statiques du dossier frontend au chemin racine
+fastify.register(fastifyStatic, {
+  root: path.resolve(__dirname, '../../frontend'),
+  prefix: '/',
+});
+
+// 6. Route de santé simple
+fastify.get('/health', async () => {
+  return { status: 'healthy', timestamp: new Date().toISOString() };
+});
+
+// 7. Configurer le gestionnaire d'erreurs global
+fastify.setErrorHandler((error, request, reply) => {
+  // Gérer les erreurs de validation Ajv de Fastify
+  if (error.validation || error.statusCode === 400) {
+    let customMessage = 'Données d\'entrée non valides.';
+    const valErrors = error.validation || [];
+
+    for (const err of valErrors) {
+      if (err.instancePath === '/password' && err.keyword === 'pattern') {
+        customMessage = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
+        break;
+      }
+      if (err.instancePath === '/password' && err.keyword === 'minLength') {
+        customMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
+        break;
+      }
+      if (err.instancePath === '/shop_name' && err.keyword === 'pattern') {
+        customMessage = 'Le nom du commerce contient des caractères spéciaux non autorisés.';
+        break;
+      }
+      if (err.instancePath === '/phone' && err.keyword === 'minLength') {
+        customMessage = 'Le numéro de téléphone est trop court.';
+        break;
+      }
+      if (err.instancePath === '/referral_code' && err.keyword === 'pattern') {
+        customMessage = 'Le code de parrainage est invalide (ex: RD-BOUTIQUE-123).';
+        break;
+      }
     }
 
-    // 2. Exécuter les migrations de base de données
-    await runMigrations();
-
-    // 3. Initialiser le Super Admin
-    await bootstrapSuperAdmin();
-
-    // 4. Enregistrer les plugins de sécurité et utilitaires généraux
-    await fastify.register(fastifyHelmet);
-    await registerCors(fastify);
-    
-    // Rate Limiting global
-    await fastify.register(fastifyRateLimit, rateLimitConfig);
-
-    // Support Multi-part pour l'upload des images de produits
-    await fastify.register(fastifyMultipart, {
-      limits: {
-        fileSize: env.UPLOAD_MAX_SIZE, // Max 2Mo par défaut
-        files: 1,
-      },
-    });
-
-    // 5. Enregistrer la documentation Swagger
-    await registerSwagger(fastify);
-
-    // 6. Enregistrer les routes applicatives
-    await fastify.register(authRoutes, { prefix: '/api/auth' });
-    await fastify.register(productsRoutes, { prefix: '/api/products' });
-    await fastify.register(categoriesRoutes, { prefix: '/api/categories' });
-    await fastify.register(salesRoutes, { prefix: '/api/sales' });
-    await fastify.register(dashboardRoutes, { prefix: '/api/dashboard' });
-    await fastify.register(logsRoutes, { prefix: '/api/logs' });
-    await fastify.register(notificationsRoutes, { prefix: '/api/notifications' });
-    await fastify.register(settingsRoutes, { prefix: '/api/settings' });
-    await fastify.register(adminRoutes, { prefix: '/api/admin' });
-
-    // Servir les fichiers statiques du dossier frontend au chemin racine
-    await fastify.register(fastifyStatic, {
-      root: path.resolve(__dirname, '../../frontend'),
-      prefix: '/',
-    });
-
-    // Route de santé simple
-    fastify.get('/health', async () => {
-      return { status: 'healthy', timestamp: new Date().toISOString() };
-    });
-
-    // 7. Configurer le gestionnaire d'erreurs global
-    fastify.setErrorHandler((error, request, reply) => {
-      // Gérer les erreurs de validation Ajv de Fastify
-      if (error.validation || error.statusCode === 400) {
-        let customMessage = 'Données d\'entrée non valides.';
-        const valErrors = error.validation || [];
-        
-        for (const err of valErrors) {
-          if (err.instancePath === '/password' && err.keyword === 'pattern') {
-            customMessage = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
-            break;
-          }
-          if (err.instancePath === '/password' && err.keyword === 'minLength') {
-            customMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
-            break;
-          }
-          if (err.instancePath === '/shop_name' && err.keyword === 'pattern') {
-            customMessage = 'Le nom du commerce contient des caractères spéciaux non autorisés.';
-            break;
-          }
-          if (err.instancePath === '/phone' && err.keyword === 'minLength') {
-            customMessage = 'Le numéro de téléphone est trop court.';
-            break;
-          }
-          if (err.instancePath === '/referral_code' && err.keyword === 'pattern') {
-            customMessage = 'Le code de parrainage est invalide (ex: RD-BOUTIQUE-123).';
-            break;
-          }
-        }
-
-        // Si pas d'erreurs détaillées mais un message AJV brut dans error.message
-        if (customMessage === 'Données d\'entrée non valides.' && error.message) {
-          if (error.message.includes('body/password') && error.message.includes('pattern')) {
-            customMessage = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
-          } else if (error.message.includes('body/password') && error.message.includes('minLength')) {
-            customMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
-          } else if (error.message.includes('body/shop_name')) {
-            customMessage = 'Le nom du commerce contient des caractères spéciaux non autorisés ou est invalide.';
-          } else if (error.message.includes('body/phone')) {
-            customMessage = 'Le numéro de téléphone est invalide.';
-          } else if (error.message.includes('body/referral_code')) {
-            customMessage = 'Le code de parrainage est invalide.';
-          } else {
-            customMessage = error.message.replace(/^body\//, 'Le champ ').replace(/must match pattern ".+"/, 'est invalide ou ne respecte pas le format requis.');
-          }
-        }
-
-        return reply.status(400).send({
-          success: false,
-          error: 'VALIDATION_ERROR',
-          message: customMessage,
-          details: error.validation || [{ message: error.message }],
-        });
+    // Si pas d'erreurs détaillées mais un message AJV brut dans error.message
+    if (customMessage === 'Données d\'entrée non valides.' && error.message) {
+      if (error.message.includes('body/password') && error.message.includes('pattern')) {
+        customMessage = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
+      } else if (error.message.includes('body/password') && error.message.includes('minLength')) {
+        customMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
+      } else if (error.message.includes('body/shop_name')) {
+        customMessage = 'Le nom du commerce contient des caractères spéciaux non autorisés ou est invalide.';
+      } else if (error.message.includes('body/phone')) {
+        customMessage = 'Le numéro de téléphone est invalide.';
+      } else if (error.message.includes('body/referral_code')) {
+        customMessage = 'Le code de parrainage est invalide.';
+      } else {
+        customMessage = error.message.replace(/^body\//, 'Le champ ').replace(/must match pattern ".+"/, 'est invalide ou ne respecte pas le format requis.');
       }
+    }
 
-      // Gérer le code d'erreur de dépassement de limite de débit (Rate Limit)
-      if (error.statusCode === 429) {
-        return reply.status(429).send(error);
-      }
-
-      // Gérer les erreurs personnalisées avec code HTTP spécifique
-      const statusCode = (error as any).statusCode || 500;
-      const errorCode = (error as any).code || 'SERVER_ERROR';
-
-      // Masquer les détails de l'erreur interne en production
-      const message = env.NODE_ENV === 'production' && statusCode === 500
-        ? 'Une erreur interne est survenue sur le serveur.'
-        : error.message;
-
-      if (statusCode === 500) {
-        request.log.error(error);
-      }
-
-      return reply.status(statusCode).send({
-        success: false,
-        error: errorCode,
-        message,
-      });
+    return reply.status(400).send({
+      success: false,
+      error: 'VALIDATION_ERROR',
+      message: customMessage,
+      details: error.validation || [{ message: error.message }],
     });
+  }
 
-    // 8. Démarrer l'écoute réseau (seulement hors Vercel Serverless)
+  // Gérer le code d'erreur de dépassement de limite de débit (Rate Limit)
+  if (error.statusCode === 429) {
+    return reply.status(429).send(error);
+  }
+
+  // Gérer les erreurs personnalisées avec code HTTP spécifique
+  const statusCode = (error as any).statusCode || 500;
+  const errorCode = (error as any).code || 'SERVER_ERROR';
+
+  // Masquer les détails de l'erreur interne en production
+  const message = env.NODE_ENV === 'production' && statusCode === 500
+    ? 'Une erreur interne est survenue sur le serveur.'
+    : error.message;
+
+  if (statusCode === 500) {
+    request.log.error(error);
+  }
+
+  return reply.status(statusCode).send({
+    success: false,
+    error: errorCode,
+    message,
+  });
+});
+
+async function startServer() {
+  try {
     if (!process.env.VERCEL) {
       await fastify.listen({ port: env.PORT, host: env.HOST });
       console.log(`🚀 Serveur démarré sur http://${env.HOST}:${env.PORT}`);
