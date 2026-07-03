@@ -22,7 +22,7 @@ import { adminRoutes } from './modules/admin/admin.routes';
 import { rateLimitConfig } from './middlewares/rate-limit';
 
 const fastify = Fastify({
-  logger: env.NODE_ENV === 'development' ? {
+  logger: (env.NODE_ENV === 'development' && !process.env.VERCEL) ? {
     transport: {
       target: 'pino-pretty',
       options: {
