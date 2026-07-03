@@ -113,7 +113,7 @@ export class SettingsView {
         
         <!-- Formulaire Profil Boutique -->
         <div class="card" style="margin-bottom: 0;">
-          <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">🏢 Fiche d'Identité du Commerce</h3>
+          <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">Fiche d'Identité du Commerce</h3>
           <form id="profile-form">
             <div class="form-group">
               <label class="form-label">Nom de la boutique</label>
@@ -423,6 +423,20 @@ export class SettingsView {
           return;
         }
 
+        if (password.length < 8) {
+          errEl.textContent = 'Le mot de passe doit contenir au moins 8 caractères.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasNumber = /\d/.test(password);
+        if (!hasUppercase || !hasNumber) {
+          errEl.textContent = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
+          errEl.style.display = 'block';
+          return;
+        }
+
         try {
           const res = await API.auth.createVendor({ password, password_confirm });
           const v = res.data.vendor;
@@ -442,8 +456,18 @@ export class SettingsView {
   // ==========================================
 
   renderReferralsTab() {
+    const showBanner = this.queryParams.fromSetup === '1';
     return `
       <div class="fade-in" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        ${showBanner ? `
+          <div class="notice notice-warning" style="grid-column: span 2; border-color: var(--border-strong); background: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; padding: 16px; margin-bottom: 0; border-radius: 6px;">
+            <div>
+              <strong style="color: var(--text-primary); font-size: 14px;">Étape 3 : Code de parrainage découvert !</strong>
+              <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-secondary);">Vous avez pris connaissance de votre code de parrainage. Vous pouvez maintenant terminer votre onboarding.</p>
+            </div>
+            <a href="#/dashboard" class="btn btn-primary btn-sm">Terminer l'onboarding</a>
+          </div>
+        ` : ''}
         
         <!-- Fiche code parrainage -->
         <div class="card" style="margin-bottom: 0; text-align: center; padding: 40px 24px;">

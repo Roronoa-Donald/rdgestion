@@ -139,12 +139,55 @@ async function startServer() {
     // 7. Configurer le gestionnaire d'erreurs global
     fastify.setErrorHandler((error, request, reply) => {
       // Gérer les erreurs de validation Ajv de Fastify
-      if (error.validation) {
+      if (error.validation || error.statusCode === 400) {
+        let customMessage = 'Données d\'entrée non valides.';
+        const valErrors = error.validation || [];
+        
+        for (const err of valErrors) {
+          if (err.instancePath === '/password' && err.keyword === 'pattern') {
+            customMessage = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
+            break;
+          }
+          if (err.instancePath === '/password' && err.keyword === 'minLength') {
+            customMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
+            break;
+          }
+          if (err.instancePath === '/shop_name' && err.keyword === 'pattern') {
+            customMessage = 'Le nom du commerce contient des caractères spéciaux non autorisés.';
+            break;
+          }
+          if (err.instancePath === '/phone' && err.keyword === 'minLength') {
+            customMessage = 'Le numéro de téléphone est trop court.';
+            break;
+          }
+          if (err.instancePath === '/referral_code' && err.keyword === 'pattern') {
+            customMessage = 'Le code de parrainage est invalide (ex: RD-BOUTIQUE-123).';
+            break;
+          }
+        }
+
+        // Si pas d'erreurs détaillées mais un message AJV brut dans error.message
+        if (customMessage === 'Données d\'entrée non valides.' && error.message) {
+          if (error.message.includes('body/password') && error.message.includes('pattern')) {
+            customMessage = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
+          } else if (error.message.includes('body/password') && error.message.includes('minLength')) {
+            customMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
+          } else if (error.message.includes('body/shop_name')) {
+            customMessage = 'Le nom du commerce contient des caractères spéciaux non autorisés ou est invalide.';
+          } else if (error.message.includes('body/phone')) {
+            customMessage = 'Le numéro de téléphone est invalide.';
+          } else if (error.message.includes('body/referral_code')) {
+            customMessage = 'Le code de parrainage est invalide.';
+          } else {
+            customMessage = error.message.replace(/^body\//, 'Le champ ').replace(/must match pattern ".+"/, 'est invalide ou ne respecte pas le format requis.');
+          }
+        }
+
         return reply.status(400).send({
           success: false,
           error: 'VALIDATION_ERROR',
-          message: 'Données d\'entrée non valides.',
-          details: error.validation,
+          message: customMessage,
+          details: error.validation || [{ message: error.message }],
         });
       }
 

@@ -254,6 +254,7 @@ export interface RegisterInput {
   password: string;
   password_confirm: string;
   referral_code?: string;
+  sectors?: string[];
 }
 
 export interface LoginInput {

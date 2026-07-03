@@ -114,7 +114,7 @@ async function openNotificationsModal() {
     <div class="modal-overlay" style="z-index: 1100;">
       <div class="modal-content" style="max-width: 480px;">
         <div class="modal-header">
-          <h3 style="font-size: 15px; font-weight: 600;">🔔 Centre de Notifications</h3>
+          <h3 style="font-size: 15px; font-weight: 600;">Centre de Notifications</h3>
           <button id="notif-modal-close" style="font-size: 20px;">×</button>
         </div>
         <div class="modal-body" style="max-height: 380px; overflow-y: auto;">

@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import * as database from '../../config/database';
 import * as passwordUtils from '../../utils/password';
 import * as tokenUtils from '../../utils/token';
+import { seedCategoriesForTenant } from '../../database/seed/categories';
 
 vi.mock('../../config/database', () => ({
   query: vi.fn(),
@@ -16,6 +17,10 @@ vi.mock('../../utils/password', () => ({
 
 vi.mock('../../utils/token', () => ({
   signToken: vi.fn().mockReturnValue('mocked_jwt_token')
+}));
+
+vi.mock('../../database/seed/categories', () => ({
+  seedCategoriesForTenant: vi.fn().mockResolvedValue(undefined)
 }));
 
 describe('AuthService', () => {
@@ -97,6 +102,44 @@ describe('AuthService', () => {
       expect(result.user.shop_name).toBe('Test Shop');
       expect(result.user.role).toBe('ADMIN');
       expect(mockClient.query).toHaveBeenCalledTimes(6);
+      expect(seedCategoriesForTenant).toHaveBeenCalledWith('tenant-123', []);
+    });
+
+    it('devrait enregistrer une nouvelle boutique avec des secteurs d activité spécifiques et appeler le seed', async () => {
+      const input = {
+        shop_name: 'Test Shop',
+        owner_name: 'Test Owner',
+        phone: '+22890123456',
+        password: 'Password123',
+        password_confirm: 'Password123',
+        sectors: ['Alimentation générale', 'Cosmétiques / Beauté']
+      };
+
+      // Simuler que le numéro de téléphone est libre
+      vi.spyOn(database, 'query').mockResolvedValueOnce({
+        rowCount: 0,
+        rows: []
+      } as any);
+
+      // Mocker la transaction
+      const mockClient = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [{ id: 'tenant-123', name: 'Test Shop' }] }) // insert tenant
+          .mockResolvedValueOnce({ rows: [] }) // insert subscription
+          .mockResolvedValueOnce({ rows: [{ id: 'user-123', username: '+22890123456', role: 'ADMIN' }] }) // insert user
+          .mockResolvedValueOnce({ rows: [] }) // insert settings
+          .mockResolvedValueOnce({ rows: [] }) // audit log tenant
+          .mockResolvedValueOnce({ rows: [] }) // audit log user
+      };
+
+      vi.spyOn(database, 'transaction').mockImplementationOnce(async (cb: any) => {
+        return cb(mockClient);
+      });
+
+      const result = await authService.register(input, '127.0.0.1', 'Mozilla');
+
+      expect(result.token).toBe('mocked_jwt_token');
+      expect(seedCategoriesForTenant).toHaveBeenCalledWith('tenant-123', ['Alimentation générale', 'Cosmétiques / Beauté']);
     });
   });
 

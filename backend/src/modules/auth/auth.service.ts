@@ -4,6 +4,7 @@ import { signToken } from '../../utils/token';
 import { generateReferralCode } from '../../utils/referral-code';
 import { RegisterInput, LoginInput, CreateVendorInput, AuthResponse, UserRole } from '../../types/models';
 import { JwtPayload } from '../../config/jwt';
+import { seedCategoriesForTenant } from '../../database/seed/categories';
 
 export class AuthService {
   /**
@@ -31,7 +32,7 @@ export class AuthService {
     // Générer le code de parrainage pour cette nouvelle boutique
     const myReferralCode = generateReferralCode(input.shop_name);
 
-    return transaction(async (client) => {
+    const res = await transaction(async (client) => {
       // 2. Créer le Tenant
       const tenantRes = await client.query<{ id: string; name: string }>(
         `INSERT INTO tenants (name, owner_name, phone, referral_code)
@@ -124,6 +125,7 @@ export class AuthService {
       const token = signToken(jwtPayload);
 
       return {
+        tenantId: tenant.id,
         token,
         user: {
           id: user.id,
@@ -134,6 +136,14 @@ export class AuthService {
         }
       };
     });
+
+    // Semer les catégories par défaut selon les secteurs choisis à l'inscription
+    await seedCategoriesForTenant(res.tenantId, input.sectors || []);
+
+    return {
+      token: res.token,
+      user: res.user
+    };
   }
 
   /**

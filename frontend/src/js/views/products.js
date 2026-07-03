@@ -438,8 +438,7 @@ export class ProductsView {
         await this.loadProducts();
 
         if (!isEdit && this.queryParams.fromSetup === '1') {
-          const goReferral = confirm('Produit cree. Voulez-vous maintenant afficher votre code de parrainage ?');
-          window.location.hash = goReferral ? '#/settings?tab=referrals&fromSetup=1' : '#/dashboard';
+          window.location.hash = '#/dashboard';
         }
       } catch (err) {
         alert(err.message);

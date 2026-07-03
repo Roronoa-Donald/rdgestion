@@ -35,6 +35,12 @@ export const registerSchema: FastifySchema = {
       referral_code: { 
         type: 'string',
         pattern: '^RD-[A-Z0-9]+-[0-9]{3}$' // Ex: RD-PHARMA-482
+      },
+      sectors: {
+        type: 'array',
+        items: {
+          type: 'string'
+        }
       }
     },
     additionalProperties: false

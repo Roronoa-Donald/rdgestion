@@ -10,10 +10,10 @@ function resetSetupGuide() {
   SETUP_KEYS.forEach(key => localStorage.removeItem(key));
 }
 
-function renderAuthShell(title, subtitle, body, footer) {
+function renderAuthShell(title, subtitle, body, footer, cardStyle = '') {
   return `
     <div class="auth-shell">
-      <section class="auth-card fade-in">
+      <section class="auth-card fade-in" style="${cardStyle}">
         <div class="auth-header">
           <div class="logo-icon auth-logo">RD</div>
           <h2>${title}</h2>
@@ -136,6 +136,48 @@ export class RegisterView {
             <input class="form-input" type="text" id="reg-referral" placeholder="RD-BOUTIQUE-123">
           </div>
 
+          <div class="form-group" style="margin-top: 24px; margin-bottom: 24px;">
+            <label class="form-label" style="margin-bottom: 12px; display: block;">Type(s) de commerce / Secteur(s) d'activité</label>
+            <div class="onboarding-sector-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 0;">
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Alimentation générale" style="width: 16px; height: 16px;">
+                <span>Alimentation générale</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Pharmacie / Parapharmacie" style="width: 16px; height: 16px;">
+                <span>Pharmacie / Médical</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Quincaillerie / Bricolage" style="width: 16px; height: 16px;">
+                <span>Quincaillerie</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Vêtements / Accessoires / Mode" style="width: 16px; height: 16px;">
+                <span>Vêtements & Mode</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Informatique / Téléphonie" style="width: 16px; height: 16px;">
+                <span>Informatique & Mobile</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Cosmétiques / Beauté" style="width: 16px; height: 16px;">
+                <span>Cosmétiques & Beauté</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Restaurant / Snack / Buvette" style="width: 16px; height: 16px;">
+                <span>Restauration</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Librairie / Papeterie" style="width: 16px; height: 16px;">
+                <span>Librairie & Papeterie</span>
+              </label>
+              <label class="sector-checkbox" style="padding: 10px 12px; font-size: 13px; gap: 8px;">
+                <input type="checkbox" name="sector" value="Électroménager" style="width: 16px; height: 16px;">
+                <span>Électroménager</span>
+              </label>
+            </div>
+          </div>
+
           <button type="submit" class="btn btn-primary auth-submit">Créer mon espace</button>
         </form>
       `,
@@ -143,7 +185,8 @@ export class RegisterView {
         <div class="auth-footer">
           Déjà inscrit ? <a href="#/login">Se connecter</a>
         </div>
-      `
+      `,
+      'max-width: 520px;'
     );
   }
 
@@ -168,14 +211,31 @@ export class RegisterView {
         return;
       }
 
+      if (password.length < 8) {
+        errorEl.textContent = 'Le mot de passe doit contenir au moins 8 caractères.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const hasUppercase = /[A-Z]/.test(password);
+      const hasNumber = /\d/.test(password);
+      if (!hasUppercase || !hasNumber) {
+        errorEl.textContent = 'Le mot de passe doit contenir au moins une lettre majuscule et un chiffre.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const checkboxes = document.querySelectorAll('input[name="sector"]:checked');
+      const sectors = Array.from(checkboxes).map(cb => cb.value);
+
       try {
         const res = await API.auth.register({
-          shop_name, owner_name, phone, password, password_confirm, referral_code
+          shop_name, owner_name, phone, password, password_confirm, referral_code, sectors
         });
         localStorage.setItem('token', res.token);
         localStorage.setItem('user', JSON.stringify(res.user));
         resetSetupGuide();
-        window.location.hash = '#/onboarding';
+        window.location.hash = '#/dashboard';
       } catch (err) {
         errorEl.textContent = err.message || 'Erreur lors de l inscription.';
         errorEl.style.display = 'block';
