@@ -84,9 +84,19 @@ fastify.register(async () => {
   const dbConnected = await checkDatabaseConnection();
   if (!dbConnected) {
     console.error('❌ Impossible de se connecter à PostgreSQL.');
-    process.exit(1);
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
+    return;
   }
-  await runMigrations();
+
+  // Les migrations ne doivent pas être exécutées au runtime sur Vercel (fichiers SQL non packagés, performance/timeouts)
+  if (!process.env.VERCEL) {
+    await runMigrations();
+  } else {
+    console.log('ℹ️ Environnement Vercel détecté : exécution des migrations ignorée au runtime.');
+  }
+
   await bootstrapSuperAdmin();
 });
 
