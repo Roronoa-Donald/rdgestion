@@ -39,11 +39,11 @@ const fastify = Fastify({
  */
 async function bootstrapSuperAdmin() {
   const superadminPhone = env.SUPERADMIN_PHONE;
-  
+
   try {
     // 1. Vérifier si le superadmin existe déjà dans les utilisateurs
     const superadminCheck = await query('SELECT id FROM users WHERE role = \'SUPERADMIN\'');
-    
+
     if (superadminCheck.rows.length > 0) {
       console.log('ℹ️ Super Administrateur déjà configuré en base.');
       return;
@@ -53,7 +53,7 @@ async function bootstrapSuperAdmin() {
 
     // Utiliser un UUID statique/système ou en générer un nouveau pour la boutique plateforme
     const systemTenantId = '00000000-0000-0000-0000-000000000000';
-    
+
     // Insérer le tenant plateforme s'il n'existe pas
     await query(
       `INSERT INTO tenants (id, name, owner_name, phone, referral_code, is_active)
