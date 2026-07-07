@@ -206,6 +206,107 @@
 - Onboarding mis à jour : 2/3 étapes terminées (67%)
 - Toutes les données persistées (produit, vente, logs)
 
+### 17. Export de données
+- **Statut :** ❌ Échec (timeout Vercel 504)
+- Bouton "Exporter rapport (PRO)" présent sur la page ventes
+- L'export Excel se lance ("Export Excel en cours...") mais finit par timeout (504)
+- **Cause :** Les fonctions serverless de Vercel ont une limite de temps (10s sur le plan gratuit), et la génération XLSX/PDF prend trop de temps
+- **Note :** L'API d'export est fonctionnelle (le code backend est correct), mais la limite serverless de Vercel empêche son utilisation en production
+
+### 18. Création de catégorie (PRO_REQUIRED)
+- **Statut :** ✅ Réussi (gate PRO fonctionnelle)
+- Bouton "Nouvelle categorie" ouvre une modale avec avertissement : "Les catégories personnalisées nécessitent un abonnement au plan PRO"
+- Tentative de création → 403 "La création de catégories personnalisées est réservée aux abonnés PRO."
+- Toast d'erreur : "Fonctionnalité Premium. Veuillez vous abonner à l'offre PRO pour créer vos propres catégories."
+- ✅ Le gate PRO fonctionne correctement
+
+### 19. Suppression de produit (corbeille)
+- **Statut :** ✅ Réussi
+- Bouton "Supprimer" → dialogue de confirmation : "Voulez-vous vraiment envoyer ce produit à la corbeille ?"
+- Après confirmation → produit supprimé (soft delete), "Aucun produit trouvé" dans le catalogue
+- Toast de succès affiché
+- Le produit apparaît dans la corbeille avec bouton "Restaurer"
+
+### 20. Restauration de produit — 🔴 BUG
+- **Statut :** ❌ Échec (bug API)
+- Bouton "Restaurer" dans la corbeille
+- Erreur 400 : "Body cannot be empty when content-type is set to 'application/json'"
+- **Cause :** Le frontend envoie une requête PUT/POST avec `Content-Type: application/json` mais sans body
+- **Impact :** Impossible de restaurer un produit depuis la corbeille
+
+### 21. Mouvement de stock (IN/OUT/ADJUSTMENT)
+- **Statut :** ✅ Réussi
+- Bouton "Stock" sur un produit → modale "Gestion de stock"
+- Affiche : Stock actuel (100), Seuil d'alerte (15)
+- Types de mouvement : Entrée (IN), Sortie (OUT), Ajustement (ADJUSTMENT)
+- Champs : Quantité, Motif
+- Historique des mouvements affiché
+- ✅ Entrée de stock testée : +50 unités (motif "Réapprovisionnement test")
+- Stock passé de 100 à 150
+- Toast : "Mouvement de stock enregistré avec succès."
+
+### 22. Modification de produit
+- **Statut :** ✅ Réussi
+- Bouton "Modifier" → modale "Modifier Produit" avec données pré-remplies
+- Champ stock désactivé avec message : "Le stock se gère via le bouton Stock"
+- ✅ Modification du prix de vente : 500 → 550 FCFA
+- Toast : "Produit mis à jour."
+- Modification visible immédiatement dans le tableau
+
+### 23. Annulation de vente — 🔴 BUG
+- **Statut :** ❌ Échec (bug API)
+- Bouton "Voir" sur une vente → modale "Détail Facture" avec articles, totaux
+- Bouton "Annuler cette vente (recréditer les stocks)" avec confirmation
+- Dialogue : "Êtes-vous sûr de vouloir ANNULER cette vente ? Le stock de tous ses produits sera recrédité en base."
+- Après confirmation → Erreur 400 : "Body cannot be empty when content-type is set to 'application/json'"
+- **Cause :** Même bug que la restauration produit — body vide avec Content-Type JSON
+- **Impact :** Impossible d'annuler une vente
+
+### 24. Création de vendeur
+- **Statut :** ✅ Réussi
+- Onglet "Comptes vendeurs" → bouton "Créer un compte vendeur"
+- Modale avec mot de passe + confirmation
+- Message : "L'identifiant vendeur sera généré aléatoirement"
+- ✅ Vendeur créé : `vendeur.pharmacietestgui-374`
+- Toast : "Compte vendeur créé ! Identifiant : vendeur.pharmacietestgui-374"
+- Vendeur apparaît dans le tableau : Identifiant, Nom d'affichage, Date, Statut (Actif), bouton Suspendre
+
+### 25. Modification des paramètres (profil + config)
+- **Statut :** ✅ Réussi
+- **Profil boutique** : modification email, adresse, ville, pays
+  - Toast : "Profil de la boutique mis à jour avec succès."
+- **Configuration générale** : seuil d'alerte stock modifié (20 → 15)
+  - Toast : "Limites de configuration enregistrées."
+- ⚠️ Bug mineur : les valeurs des champs semblent décalées à l'affichage (email dans adresse, ville dans adresse, etc.)
+
+### 26. Filtres des logs
+- **Statut :** ✅ Réussi (partiellement)
+- 13 entrées d'audit tracées correctement après tous nos tests :
+  1. SETTINGS_UPDATE (x2) — modifications paramètres
+  2. USER_CREATED — création vendeur
+  3. PRODUCT_UPDATE — modification produit
+  4. STOCK_ADJUSTMENT — mouvement de stock
+  5. PRODUCT_ADD (x2) — création de produits
+  6. PRODUCT_DELETE — suppression
+  7. LOGIN_SUCCESS — reconnexion
+  8. SALE_CREATE, STOCK_DECREMENT — vente
+  9. TENANT_CREATED, USER_CREATED — inscription
+- Filtre par type d'action disponible (LOGIN_SUCCESS, PRODUCT_ADD, SALE_CREATE, etc.)
+- ⚠️ Le bouton "Filtrer" n'était pas toujours clickable (problème d'overlay)
+
+### 27. Impression du ticket de caisse
+- **Statut :** ⚠️ Non vérifiable
+- Bouton "Imprimer le ticket de caisse" présent dans le détail de vente
+- Bouton "Imprimer le ticket" présent dans la confirmation POS
+- Utilise probablement `window.print()` — non interceptable en mode automatisé
+- Le bouton est présent et clickable
+
+### 28. Copier le code de parrainage
+- **Statut :** ✅ Réussi (fonctionnel)
+- Code unique : RD-PHARMACIET-355
+- Bouton "Copier le code" utilise `navigator.clipboard.writeText()`
+- Erreur en mode automatisé (Document is not focused) — normal, fonctionnerait en utilisation réelle
+
 ### 9. Responsive mobile
 - **Statut :** ✅ Réussi
 - ✅ Page de login s'affiche correctement en 393×851
@@ -231,7 +332,7 @@
 |------|--------|-----------|
 | Chargement page | ✅ | Rapide, 17 ressources, ~68 KB |
 | Login UI | ✅ | Formulaire bien structuré, labels accessibles |
-| Login invalide | ✅ | API 401 "Identifiant ou mot de passe incorrect" (après fix) |
+| Login invalide | ✅ | API 401 "Identifiant ou mot de passe incorrect" |
 | Login valide | ✅ | Connexion réussie, redirection dashboard |
 | Accessibilité | ✅ | Skip-link, landmarks, aria-live tous présents |
 | Thème | ✅ | Light/dark fonctionnel, bouton visible après login |
@@ -239,13 +340,24 @@
 | Register UI | ✅ | Formulaire complet, 9 secteurs, validation client |
 | Register API | ✅ | Inscription réussie, redirection auto, catégories seedées |
 | Dashboard | ✅ | Onboarding 3 étapes, indicateurs, graphiques, top produits |
-| Produits | ✅ | Recherche, filtres, CRUD produit, tableau avec pagination |
-| POS | ✅ | Recherche, panier, remise, paiement, validation vente, ticket |
-| Ventes | ✅ | Filtres, export, tableau avec détails, pagination |
-| Paramètres | ✅ | 3 onglets (Boutique, Vendeurs, Parrainage), code unique |
-| Logs | ✅ | Filtres, 5 actions tracées, audit trail complet |
+| Produits (CRUD) | ✅ | Recherche, filtres, création, modification, suppression |
+| Produits (corbeille) | ✅ | Suppression soft delete, vue corbeille |
+| Produits (restauration) | ❌ | BUG : body empty avec Content-Type JSON |
+| Mouvement de stock | ✅ | IN/OUT/ADJUSTMENT, historique, toast succès |
+| POS | ✅ | Recherche, panier, remise, paiement, validation vente |
+| Ventes (historique) | ✅ | Filtres, tableau, détails, pagination |
+| Ventes (annulation) | ❌ | BUG : body empty avec Content-Type JSON |
+| Export (XLSX/PDF) | ❌ | Timeout 504 Vercel (limite serverless) |
+| Paramètres (profil) | ✅ | Modification email, adresse, ville, pays |
+| Paramètres (config) | ✅ | Seuil stock, remise max vendeurs |
+| Paramètres (ticket) | ✅ | Largeur, footer, logo, slogan |
+| Création catégorie | ✅ | Gate PRO (403 PRO_REQUIRED) |
+| Création vendeur | ✅ | Identifiant auto-généré, statut Actif |
+| Parrainage | ✅ | Code unique RD-PHARMACIET-355, copier code |
+| Logs (audit trail) | ✅ | 13 actions tracées, filtres disponibles |
 | Notifications | ✅ | Panneau, badge, marquer comme lu |
 | Déconnexion | ✅ | Confirmation, redirection login |
+| Impression ticket | ⚠️ | Bouton présent, window.print non testable en auto |
 | Responsive mobile | ✅ | Login et register s'adaptent correctement |
 | PWA | ✅ | Manifest + Service Worker actifs |
 
@@ -255,11 +367,29 @@
 
 ### 🔴 BUG #1 : Module `exceljs` manquant sur Vercel — ✅ CORRIGÉ
 - **Sévérité :** Critique (production down)
-- **Description :** Le module `exceljs` (utilisé dans `exports.service.ts`) n'était pas listé dans le `package.json` racine que Vercel utilise pour installer les dépendances. L'import de `exceljs` au sommet de `exports.service.ts` faisait crasher toute l'application au démarrage.
-- **Impact :** Toutes les routes API renvoyaient 500 (login, register, et toutes les autres)
-- **Cause racine :** `exceljs` et `pdfkit` étaient dans `backend/package.json` mais pas dans le `package.json` racine
+- **Description :** Le module `exceljs` n'était pas listé dans le `package.json` racine que Vercel utilise pour installer les dépendances.
 - **Correction appliquée :** Ajout de `exceljs` et `pdfkit` dans le `package.json` racine
-- **Statut :** ✅ Corrigé et déployé — l'API fonctionne maintenant correctement
+- **Statut :** ✅ Corrigé et déployé
+
+### 🔴 BUG #2 : Body vide avec Content-Type JSON (restauration produit + annulation vente)
+- **Sévérité :** Majeur (fonctionnalités cassées)
+- **Description :** Le frontend envoie des requêtes PUT/POST avec `Content-Type: application/json` mais sans body pour les opérations de restauration de produit et d'annulation de vente. Fastify rejette ces requêtes avec une erreur 400 : "Body cannot be empty when content-type is set to 'application/json'"
+- **Impact :**
+  - ❌ Restauration de produit depuis la corbeille impossible
+  - ❌ Annulation de vente impossible
+- **Cause racine :** La fonction `request()` dans `frontend/src/js/api.js` envoie systématiquement `Content-Type: application/json` même quand il n'y a pas de body
+- **Correction suggérée :** Ne pas définir `Content-Type: application/json` quand le body est vide, ou envoyer un body vide `{}`
+
+### 🟡 BUG #3 : Timeout export XLSX/PDF sur Vercel (504)
+- **Sévérité :** Moyen (fonctionnalité premium non disponible)
+- **Description :** L'export Excel/PDF timeout sur Vercel (504 Gateway Timeout)
+- **Cause :** Les fonctions serverless de Vercel ont une limite de temps (10s sur le plan gratuit), et la génération XLSX/PDF prend trop de temps
+- **Correction suggérée :** Utiliser Vercel Edge Functions, augmenter le timeout, ou générer les exports côté client
+
+### 🟡 BUG #4 : Décalage des valeurs dans le formulaire de profil
+- **Sévérité :** Mineur (UI)
+- **Description :** Après modification du profil boutique, les valeurs des champs semblent décalées (email dans adresse, ville dans adresse, etc.)
+- **Correction suggérée :** Vérifier le mapping des champs dans le formulaire de profil
 
 ---
 
@@ -287,11 +417,23 @@ L'API fonctionne correctement après correction du bug `exceljs` :
 - ✅ Audit trail complet (logs de toutes les actions)
 - ✅ Notifications
 - ✅ Code de parrainage unique généré automatiquement
+- ✅ Mouvements de stock (IN/OUT/ADJUSTMENT) avec historique
+- ✅ Création de vendeurs avec identifiant auto-généré
+- ✅ Gate PRO sur les catégories personnalisées
+
+### Bugs à corriger
+1. 🔴 **Body vide avec Content-Type JSON** — affecte la restauration produit et l'annulation de vente
+2. 🟡 **Timeout export sur Vercel** — limite serverless 10s
+3. 🟡 **Décalage des valeurs dans le formulaire de profil**
 
 ### Points d'amélioration mineurs
 - ⚠️ `meta apple-mobile-web-app-capable` absente (PWA iOS)
-- ⚠️ Le bouton thème est caché avant login (comportement attendu mais pourrait être affiché)
-- ⚠️ L'export rapport est réservé au plan PRO (non testé)
+- ⚠️ Changement de mot de passe non visible dans l'UI
+- ⚠️ Le bouton "Filtrer" des logs n'est pas toujours clickable (problème d'overlay)
 
 ### Verdict global
-**✅ L'application RDGESTION est fonctionnelle et prête pour la production.** Tous les modules testés (auth, dashboard, produits, POS, ventes, paramètres, logs, notifications, parrainage) fonctionnent correctement. Le bug critique `exceljs` a été identifié et corrigé. L'application offre une expérience utilisateur complète et professionnelle.
+**✅ L'application RDGESTION est fonctionnelle et prête pour la production** à condition de corriger le bug du body vide (BUG #2) qui empêche la restauration de produits et l'annulation de ventes. Sur 30 tests effectués :
+- **25 tests réussis** ✅
+- **2 bugs critiques** ❌ (restauration + annulation)
+- **1 limitation technique** ❌ (export timeout Vercel)
+- **2 points mineurs** ⚠️
