@@ -1,5 +1,6 @@
 import { API } from '../api.js';
 import { escapeHtml } from '../utils.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
 
 const SETUP_DISMISSED_KEY = 'rdg_setup_dismissed';
 const SETUP_REFERRAL_SEEN_KEY = 'rdg_setup_referral_seen';
@@ -11,11 +12,58 @@ export class DashboardView {
   }
 
   async afterRender() {
+    
     document.getElementById('current-view-title').textContent = 'Vue d\'ensemble';
 
+    const container = document.getElementById('dashboard-container');
+    if (!container) {
+      console.error('[DASH-Audit] ❌ CRITICAL: dashboard-container NOT FOUND!');
+      return;
+    }
+    const containerId = 'dashboard-container';
+
+    
+    container.innerHTML = `
+      <div class="dashboard-page">
+        <section class="metric-grid">
+          ${Skeletons.grid(4, 'card')}
+        </section>
+        <section class="dashboard-grid">
+          <article class="card dashboard-panel">
+            <div class="panel-heading">
+              <div class="skeleton skeleton-text" style="width: 200px; height: 24px;"></div>
+              <div class="skeleton skeleton-text" style="width: 150px; height: 14px;"></div>
+            </div>
+            <div class="table-responsive">
+              <table class="table">${Skeletons.table(3, 5)}</table>
+            </div>
+          </article>
+          <article class="card dashboard-panel">
+            <div class="panel-heading">
+              <div class="skeleton skeleton-text" style="width: 180px; height: 24px;"></div>
+              <div class="skeleton skeleton-text" style="width: 120px; height: 14px;"></div>
+            </div>
+            <div class="payment-list">${Skeletons.grid(4, 'row')}</div>
+          </article>
+        </section>
+      </div>
+    `;
+    
+
+    const isStillActive = () => document.getElementById(containerId) === container;
+
     try {
+      
       const res = await API.dashboard.getStats();
-      const stats = res.data;
+      if (!isStillActive()) {
+        
+        return;
+      }
+      const stats = res?.data;
+      if (!stats) {
+        throw new Error('Réponse du tableau de bord invalide.');
+      }
+      
 
       const dismissed = localStorage.getItem(SETUP_DISMISSED_KEY) === 'true';
       const productDone = Number(stats.products.total) > 0 || localStorage.getItem(SETUP_PRODUCT_CREATED_KEY) === 'true';
@@ -23,14 +71,15 @@ export class DashboardView {
       const setupCompleted = productDone && referralDone;
 
       if (!dismissed && !setupCompleted) {
-        this.renderOnboardingWizard(stats, productDone, referralDone);
+        
+        if (isStillActive()) this.renderOnboardingWizard(stats, productDone, referralDone);
       } else {
-        this.renderStandardDashboard(stats);
+        
+        if (isStillActive()) this.renderStandardDashboard(stats);
       }
     } catch (error) {
-      console.error('Erreur chargement statistiques dashboard :', error);
-      const container = document.getElementById('dashboard-container');
-      if (container) {
+      console.error('[DASH-Audit] ❌ Error loading stats:', error);
+      if (isStillActive()) {
         container.innerHTML = `
           <div class="card text-center" style="max-width: 500px; margin: 40px auto; padding: 32px;">
             <h3 style="color: var(--error); margin-bottom: 8px;">Impossible de charger le tableau de bord</h3>
@@ -38,13 +87,21 @@ export class DashboardView {
             <button id="btn-retry-dash" class="btn btn-primary btn-sm">Réessayer</button>
           </div>
         `;
-        document.getElementById('btn-retry-dash')?.addEventListener('click', () => this.afterRender());
+        const retryBtn = document.getElementById('btn-retry-dash');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            await withLoading(btn, () => this.afterRender(), "Chargement des statistiques...");
+          });
+        }
       }
     }
+    
   }
 
   renderOnboardingWizard(stats, productDone, referralDone) {
     const container = document.getElementById('dashboard-container');
+    if (!container) return;
     const completedSteps = 1 + (productDone ? 1 : 0) + (referralDone ? 1 : 0);
     const progressPct = Math.round((completedSteps / 3) * 100);
 
@@ -67,7 +124,6 @@ export class DashboardView {
         </section>
 
         <div class="wizard-steps">
-          <!-- Étape 1 : Catégories -->
           <article class="wizard-step is-completed">
             <div class="step-icon" aria-hidden="true">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
@@ -81,7 +137,6 @@ export class DashboardView {
             <span class="step-status">Terminé</span>
           </article>
 
-          <!-- Étape 2 : Premier produit -->
           <article class="wizard-step ${productDone ? 'is-completed' : 'is-active'}">
             <div class="step-icon" aria-hidden="true">
               ${productDone ? `
@@ -104,7 +159,6 @@ export class DashboardView {
             <span class="step-status">${productDone ? 'Terminé' : 'En cours'}</span>
           </article>
 
-          <!-- Étape 3 : Code de parrainage -->
           <article class="wizard-step ${referralDone ? 'is-completed' : (productDone ? 'is-active' : 'is-locked')}">
             <div class="step-icon" aria-hidden="true">
               ${referralDone ? `
@@ -153,7 +207,11 @@ export class DashboardView {
 
   renderStandardDashboard(stats) {
     const currency = 'FCFA';
+    this.currentPeriod = 'daily';
+    this.chartData = stats.chart_data || { daily: [], weekly: [], monthly: [], yearly: [] };
+    
     const container = document.getElementById('dashboard-container');
+    if (!container) return;
     container.innerHTML = `
       <div class="dashboard-page">
         <section id="dashboard-stock-alert" class="notice notice-warning" style="display: none;">
@@ -198,6 +256,47 @@ export class DashboardView {
           </article>
         </section>
 
+        <section class="card dashboard-panel" aria-label="Évolution du chiffre d'affaires">
+          <div class="panel-heading">
+            <div>
+              <h3>Évolution du chiffre d'affaires</h3>
+              <p>Tendance sur la période sélectionnée.</p>
+            </div>
+            <div class="period-selector" role="group" aria-label="Sélection de la période">
+              <button class="btn btn-sm btn-secondary period-btn active" data-period="daily">Jour</button>
+              <button class="btn btn-sm btn-secondary period-btn" data-period="weekly">Semaine</button>
+              <button class="btn btn-sm btn-secondary period-btn" data-period="monthly">Mois</button>
+              <button class="btn btn-sm btn-secondary period-btn" data-period="yearly">Année</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <svg id="revenue-chart" viewBox="0 0 600 200" aria-label="Graphique d'évolution du CA" role="img">
+              <title>Évolution du chiffre d'affaires</title>
+              <desc>Graphique en courbe montrant l'évolution des ventes sur la période sélectionnée</desc>
+              <rect class="chart-bg" x="0" y="0" width="600" height="200" fill="var(--bg-tertiary)" opacity="0.3"/>
+              g id="chart-grid" stroke="var(--border-color)" stroke-width="0.5" opacity="0.4">
+                <line x1="40" y1="20" x2="40" y2="180"/>
+                <line x1="120" y1="20" x2="120" y2="180"/>
+                <line x1="200" y1="20" x2="200" y2="180"/>
+                <line x1="280" y1="20" x2="280" y2="180"/>
+                <line x1="360" y1="20" x2="360" y2="180"/>
+                <line x1="440" y1="20" x2="440" y2="180"/>
+                <line x1="520" y1="20" x2="520" y2="180"/>
+                <line x1="600" y1="20" x2="600" y2="180"/>
+                <line x1="40" y1="40" x2="600" y2="40"/>
+                <line x1="40" y1="80" x2="600" y2="80"/>
+                <line x1="40" y1="120" x2="600" y2="120"/>
+                <line x1="40" y1="160" x2="600" y2="160"/>
+                <line x1="40" y1="180" x2="600" y2="180"/>
+              </g>
+              <g id="chart-area" fill="var(--success)" opacity="0.2"/>
+              <polyline id="chart-line" fill="none" stroke="var(--success)" stroke-width="2.5" points=""/>
+              g id="chart-labels" font-size="9" fill="var(--text-secondary)" text-anchor="middle"/>
+              <text id="chart-empty" x="320" y="100" fill="var(--text-muted)" font-size="13" text-anchor="middle">Aucune donnée disponible</text>
+            </svg>
+          </div>
+        </section>
+
         <section class="dashboard-grid">
           <article class="card dashboard-panel">
             <div class="panel-heading">
@@ -239,7 +338,7 @@ export class DashboardView {
             <div id="payment-methods-list" class="payment-list">
               <div class="empty-state compact">
                 <strong>Pas encore de paiement</strong>
-                <span>La répartition apparaîtra après la première vente.</span>
+                <span class="text-secondary">La répartition apparaîtra après la première vente.</span>
               </div>
             </div>
           </article>
@@ -257,6 +356,136 @@ export class DashboardView {
     this.renderStockAlert(stats.products.low_stock);
     this.renderTopProducts(stats.top_products, currency);
     this.renderPaymentMethods(stats.payment_methods, currency);
+    this.renderRevenueChart(this.currentPeriod);
+    this.bindPeriodSelector();
+    if (stats.category_sales && stats.category_sales.length > 0) {
+      this.renderCategoryChart(stats.category_sales);
+    }
+  }
+
+  bindPeriodSelector() {
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        this.currentPeriod = e.target.dataset.period;
+        this.renderRevenueChart(this.currentPeriod);
+      });
+    });
+  }
+
+  renderRevenueChart(period) {
+    const data = this.chartData[period] || [];
+    const svg = document.getElementById('revenue-chart');
+    const chartLine = document.getElementById('chart-line');
+    const chartArea = document.getElementById('chart-area');
+    const chartLabels = document.getElementById('chart-labels');
+    const chartEmpty = document.getElementById('chart-empty');
+    
+    if (!svg || !chartLine || !chartArea || !chartLabels || !data || data.length === 0) {
+      if (chartEmpty) chartEmpty.style.display = 'block';
+      if (chartLine) chartLine.setAttribute('points', '');
+      if (chartArea) chartArea.innerHTML = '';
+      if (chartLabels) chartLabels.innerHTML = '';
+      return;
+    }
+    
+    if (chartEmpty) chartEmpty.style.display = 'none';
+    
+    const maxValue = Math.max(...data.map(d => d.revenue), 1);
+    const padding = { left: 40, right: 20, top: 20, bottom: 20 };
+    const chartWidth = 600 - padding.left - padding.right;
+    const chartHeight = 180 - padding.top - padding.bottom;
+    
+    const points = data.map((d, i) => {
+      const x = padding.left + (i / (data.length - 1 || 1)) * chartWidth;
+      const y = padding.top + chartHeight - (d.revenue / maxValue) * chartHeight;
+      return `${x},${y}`;
+    }).join(' ');
+    
+    chartLine.setAttribute('points', points);
+    
+    const areaPoints = `
+      ${padding.left},${padding.top + chartHeight} 
+      ${points} 
+      ${padding.left + chartWidth},${padding.top + chartHeight}
+    `.trim();
+    chartArea.innerHTML = `<polygon points="${areaPoints}" fill="var(--success)" opacity="0.15"/>`;
+    
+    const labelCount = Math.min(6, data.length);
+    const step = Math.floor(data.length / labelCount);
+    chartLabels.innerHTML = data.filter((_, i) => i % step === 0 || i === data.length - 1)
+      .map((d, i, arr) => {
+        const idx = data.indexOf(d);
+        const x = padding.left + (idx / (data.length - 1 || 1)) * chartWidth;
+        const label = period === 'daily' ? d.date.slice(5) 
+                 : period === 'weekly' ? `S${i+1}`
+                 : period === 'monthly' ? d.month.slice(5)
+                 : d.year;
+        return `<text x="${x}" y="195">${escapeHtml(label)}</text>`;
+      }).join('');
+  }
+
+  renderCategoryChart(categories) {
+    let section = document.getElementById('category-sales-section');
+    if (!section) {
+      const grid = document.querySelector('.dashboard-grid');
+      if (!grid) return;
+      
+      section = document.createElement('article');
+      section.id = 'category-sales-section';
+      section.className = 'card dashboard-panel';
+      section.innerHTML = `
+        <div class="panel-heading">
+          <div>
+            <h3>Ventes par catégorie</h3>
+            <p>Répartition du mois en cours.</p>
+          </div>
+        </div>
+        <div class="chart-container">
+          <svg id="category-chart" viewBox="0 0 500 250" aria-label="Histogramme des ventes par catégorie" role="img">
+            <title>Ventes par catégorie</title>
+            <g id="category-bars"/>
+            <text id="category-empty" x="250" y="125" fill="var(--text-muted)" font-size="13" text-anchor="middle">Aucune donnée</text>
+          </svg>
+        </div>
+      `;
+      grid.appendChild(section);
+    }
+    
+    const barsGroup = document.getElementById('category-bars');
+    const emptyText = document.getElementById('category-empty');
+    if (!barsGroup || !categories || categories.length === 0) {
+      if (emptyText) emptyText.style.display = 'block';
+      if (barsGroup) barsGroup.innerHTML = '';
+      return;
+    }
+    
+    if (emptyText) emptyText.style.display = 'none';
+    
+    const maxValue = Math.max(...categories.map(c => c.total_revenue), 1);
+    const barWidth = Math.min(60, (450 / categories.length) - 10);
+    const chartHeight = 200;
+    const padding = { left: 40, top: 20 };
+    
+    barsGroup.innerHTML = categories.map((c, i) => {
+      const barHeight = (c.total_revenue / maxValue) * chartHeight;
+      const x = padding.left + i * (barWidth + 10) + 5;
+      const y = chartHeight + padding.top - barHeight;
+      
+      return `
+        <g class="category-bar-group">
+          <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" 
+                fill="var(--accent-color)" rx="3">
+            <title>${escapeHtml(c.category_name)}: ${Number(c.total_revenue).toLocaleString()} FCFA</title>
+          </rect>
+          <text x="${x + barWidth/2}" y="${chartHeight + padding.top + 15}" 
+                font-size="8" fill="var(--text-secondary)" text-anchor="middle">
+            ${escapeHtml(c.category_name.length > 10 ? c.category_name.slice(0,10)+'…' : c.category_name)}
+          </text>
+        </g>
+      `;
+    }).join('');
   }
 
   renderRevenueTrend(trendVal) {
@@ -281,7 +510,7 @@ export class DashboardView {
     if (limitContainer) limitContainer.style.display = 'block';
     const limitText = document.getElementById('limit-text');
     if (limitText) limitText.textContent = `${today.daily_limit_count} / ${today.daily_limit_max}`;
-    
+
     const pct = Math.min(100, (today.daily_limit_count / today.daily_limit_max) * 100);
     const bar = document.getElementById('limit-bar');
     if (bar) {
@@ -331,8 +560,8 @@ export class DashboardView {
             <strong>${methodLabel}</strong>
             <span style="color: var(--text-secondary);">${Number(p.total_amount).toLocaleString()} ${currency} (${pct}%)</span>
           </div>
-          <div class="payment-track" style="height: 6px; background: var(--bg-tertiary); border-radius: 99px; overflow: hidden;">
-            <div class="payment-bar" style="height: 100%; background: var(--accent-color); width: ${pct}%; border-radius: 99px;"></div>
+          <div class="payment-track" style="height: 6px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden;">
+            <div class="payment-bar" style="height: 100%; background: var(--accent-color); width: ${pct}%; border-radius: 999px;"></div>
           </div>
         </div>
       `;

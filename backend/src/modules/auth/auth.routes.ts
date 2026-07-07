@@ -35,6 +35,17 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   }, (request: FastifyRequest, reply: FastifyReply) => authController.login(request as any, reply));
 
+  // Déconnexion (route authentifiée, pass-through — le client supprime son token)
+  fastify.post('/logout', {
+    preHandler: [authenticate],
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute'
+      }
+    }
+  }, (request: FastifyRequest, reply: FastifyReply) => authController.logout(request, reply));
+
   // Création de vendeur (Rôle ADMIN sur Tenant actif)
   fastify.post('/vendors', {
     schema: createVendorSchema,

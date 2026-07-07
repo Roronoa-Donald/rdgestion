@@ -1,5 +1,7 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { setupDialog } from '../utils/aria.js';
 
 export class LogsView {
   constructor() {
@@ -210,12 +212,12 @@ export class LogsView {
       <div class="modal-overlay">
         <div class="modal-content" style="max-width: 600px;">
           <div class="modal-header">
-            <h3 style="font-size: 15px; font-weight: 600;">Inspecter Log Action : ${escapeHtml(log.action)}</h3>
-            <button id="modal-close" style="font-size: 20px;">×</button>
+            <h3 id="log-modal-title" style="font-size: 15px; font-weight: 600;">Inspecter Log Action : ${escapeHtml(log.action)}</h3>
+            <button id="modal-close" style="font-size: 20px;" aria-label="Fermer la fenêtre">×</button>
           </div>
           
           <div class="modal-body">
-            <pre style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 16px; overflow-x: auto; font-family: monospace; font-size: 12px; color: #10b981; max-height: 400px; overflow-y: auto;">${escapeHtml(JSON.stringify(log.details, null, 2))}</pre>
+            <pre style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 16px; overflow-x: auto; font-family: monospace; font-size: 12px; color: var(--success); max-height: 400px; overflow-y: auto;">${escapeHtml(JSON.stringify(log.details, null, 2))}</pre>
             
             <div style="font-size: 11px; color: var(--text-secondary); margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
               <div><strong>ID Log :</strong> ${escapeHtml(log.id)}</div>
@@ -230,5 +232,6 @@ export class LogsView {
     `;
 
     document.getElementById('modal-close').addEventListener('click', () => container.innerHTML = '');
+    setupDialog(container.querySelector('.modal-content'), { labelledbyId: 'log-modal-title', closeFn: () => container.innerHTML = '' });
   }
 }

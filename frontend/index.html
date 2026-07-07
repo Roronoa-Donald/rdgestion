@@ -6,7 +6,13 @@
   <title>RDGESTION — Gestion de Stock & POS SaaS</title>
   <!-- SEO Meta Tags -->
   <meta name="description" content="Solution SaaS ultra-rapide de gestion de stock et caisse enregistreuse pour commerces en Afrique de l'Ouest.">
+
+  <link rel="icon" type="image/svg+xml" href="src/assets/icon.svg">
+  <link rel="shortcut icon" href="src/assets/icon.svg">
   
+  <!-- Content Security Policy for production -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' http://localhost:* https://*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;">
+
   <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="src/css/style.css">
   
@@ -15,6 +21,8 @@
   <meta name="theme-color" content="#f7f7f5">
 </head>
 <body>
+
+  <a href="#content-area" class="skip-link">Aller au contenu principal</a>
 
   <div id="app-layout">
     <!-- Barre Latérale (Sidebar) -->
@@ -89,7 +97,12 @@
     <div class="main-content">
       <!-- En-tête (Header) -->
       <header id="main-header" class="main-header" style="display: none;">
-        <div class="header-title" id="current-view-title">Vue d'ensemble</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button id="mobile-menu-btn" class="btn-secondary" style="display: none; padding: 8px; border-radius: 50%;" title="Menu">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
+          <div class="header-title" id="current-view-title">Vue d'ensemble</div>
+        </div>
         <div class="header-actions">
           <!-- Notification cloche -->
           <button class="notif-bell" id="bell-btn" title="Notifications" aria-label="Notifications">
@@ -111,13 +124,12 @@
     </div>
   </div>
 
+  <!-- Conteneurs Globaux pour Modales et Panneaux -->
+  <div id="sales-modal-container"></div>
+
+
   <!-- Scripts Application -->
+  <script src="src/js/init-theme.js"></script>
   <script type="module" src="src/js/app.js"></script>
-  
-  <script>
-    // Initialisation rapide du thème pour éviter le flash blanc au chargement
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  </script>
 </body>
 </html>

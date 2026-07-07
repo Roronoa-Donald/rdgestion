@@ -1,4 +1,5 @@
 import { API } from '../api.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
 
 const SETUP_KEYS = [
   'rdg_setup_dismissed',
@@ -67,31 +68,35 @@ export class LoginView {
       const identifier = document.getElementById('login-phone').value.trim();
       const password = document.getElementById('login-password').value;
 
+      const btn = form.querySelector('.auth-submit');
       try {
-        const res = await API.auth.login({ identifier, password });
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('user', JSON.stringify(res.user));
+        await withLoading(btn, async () => {
+          const res = await API.auth.login({ identifier, password });
+          localStorage.setItem('token', res.token);
+          localStorage.setItem('user', JSON.stringify(res.user));
 
-        if (res.user.role === 'ADMIN') {
-          try {
-            const categories = await API.categories.list();
-            if (categories.length <= 1) {
-              resetSetupGuide();
-              window.location.hash = '#/onboarding';
-              return;
+          if (res.user.role === 'ADMIN') {
+            try {
+              const categories = await API.categories.list();
+              if (categories.length <= 1) {
+                resetSetupGuide();
+                window.location.hash = '#/onboarding';
+                return;
+              }
+            } catch (e) {
+              console.error('Erreur verification onboarding categories :', e);
             }
-          } catch (e) {
-            console.error('Erreur verification onboarding categories :', e);
+            window.location.hash = '#/dashboard';
+          } else if (res.user.role === 'SELLER') {
+            window.location.hash = '#/pos';
+          } else {
+            window.location.hash = '#/admin';
           }
-          window.location.hash = '#/dashboard';
-        } else if (res.user.role === 'SELLER') {
-          window.location.hash = '#/pos';
-        } else {
-          window.location.hash = '#/admin';
-        }
+        }, "Connexion en cours...");
       } catch (err) {
         errorEl.textContent = err.message || 'Identifiants invalides.';
         errorEl.style.display = 'block';
+        Toast.error(err.message || 'Identifiants invalides.');
       }
     });
   }
@@ -228,17 +233,22 @@ export class RegisterView {
       const checkboxes = document.querySelectorAll('input[name="sector"]:checked');
       const sectors = Array.from(checkboxes).map(cb => cb.value);
 
+      const btn = form.querySelector('.auth-submit');
       try {
-        const res = await API.auth.register({
-          shop_name, owner_name, phone, password, password_confirm, referral_code, sectors
-        });
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('user', JSON.stringify(res.user));
-        resetSetupGuide();
-        window.location.hash = '#/dashboard';
+        await withLoading(btn, async () => {
+          const res = await API.auth.register({
+            shop_name, owner_name, phone, password, password_confirm, referral_code, sectors
+          });
+          localStorage.setItem('token', res.token);
+          localStorage.setItem('user', JSON.stringify(res.user));
+          resetSetupGuide();
+          Toast.success('Boutique créée avec succès !');
+          window.location.hash = '#/dashboard';
+        }, "Création de votre compte...");
       } catch (err) {
         errorEl.textContent = err.message || 'Erreur lors de l inscription.';
         errorEl.style.display = 'block';
+        Toast.error(err.message || 'Erreur lors de l inscription.');
       }
     });
   }
@@ -343,13 +353,20 @@ export class OnboardingView {
       e.preventDefault();
       const checkboxes = document.querySelectorAll('input[name="sector"]:checked');
       const sectors = Array.from(checkboxes).map(cb => cb.value);
-      await continueToDashboard(sectors);
+
+      const btn = form.querySelector('.btn-primary');
+      await withLoading(btn, async () => {
+        await continueToDashboard(sectors);
+      }, "Configuration du catalogue...");
     });
 
     skipBtn.addEventListener('click', async () => {
       const confirmed = confirm('Passer la configuration des catégories ? Une catégorie Autres sera créée et vous pourrez organiser le catalogue plus tard.');
       if (!confirmed) return;
-      await continueToDashboard([]);
+
+      await withLoading(skipBtn, async () => {
+        await continueToDashboard([]);
+      }, "Passage en cours...");
     });
   }
 }

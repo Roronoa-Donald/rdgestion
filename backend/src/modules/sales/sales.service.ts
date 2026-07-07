@@ -57,6 +57,14 @@ export class SalesService {
     // Commencer la transaction SQL
     return transaction(async (client) => {
       // 2b. Vérifier la limite journalière de 30 ventes (Plan FREE) — à l'intérieur de la transaction avec verrouillage
+      // Récupérer le username/role du vendeur pour les logs d'audit (réutilisé plus bas)
+      const sellerUserRes = await client.query<{ username: string; role: string }>(
+        'SELECT username, role FROM users WHERE id = $1',
+        [sellerId]
+      );
+      const sellerUser = sellerUserRes.rows[0];
+      const sellerUsername = sellerUser?.username || null;
+
       if (isFreePlan) {
         await client.query(
           `INSERT INTO daily_sale_counts (tenant_id, sale_date, count)
@@ -273,14 +281,53 @@ export class SalesService {
         saleItems.push(itemRes.rows[0]!);
 
         // Décrémenter le stock du produit
-        const newStock = p.stock_quantity - item.quantity;
+        const newStock = Number(p.stock_quantity) - item.quantity;
         await client.query(
           'UPDATE products SET stock_quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
           [newStock, p.id]
         );
 
+        // Tracer le mouvement de stock (sortie liée à une vente)
+        await client.query(
+          `INSERT INTO stock_movements (tenant_id, product_id, movement_type, quantity, old_stock, new_stock, reason, sale_id, user_id)
+           VALUES ($1, $2, 'OUT', $3, $4, $5, $6, $7, $8)`,
+          [
+            tenantId,
+            p.id,
+            item.quantity,
+            Number(p.stock_quantity),
+            newStock,
+            `Vente ${sale.transaction_number}`,
+            sale.id,
+            sellerId
+          ]
+        );
+
+        // Log d'audit STOCK_DECREMENT par produit
+        await client.query(
+          `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
+           VALUES ($1, $2, $3, $4, 'STOCK_DECREMENT', 'PRODUCT', $5, $6, $7, $8)`,
+          [
+            tenantId,
+            sellerId,
+            sellerUsername,
+            sellerRole,
+            p.id,
+            JSON.stringify({
+              product_name: p.name,
+              quantity_sold: item.quantity,
+              old_stock: Number(p.stock_quantity),
+              new_stock: newStock,
+              sale_id: sale.id,
+              transaction_number: sale.transaction_number
+            }),
+            clientIp,
+            userAgent
+          ]
+        );
+
         // Envoyer une notification de stock si nécessaire
-        const effectiveThreshold = p.stock_threshold !== null ? p.stock_threshold : globalThreshold;
+        const effectiveThreshold = p.stock_threshold !== null ? Number(p.stock_threshold) : globalThreshold;
         if (newStock <= effectiveThreshold) {
           const alertType = newStock === 0 ? 'STOCK_OUT' : 'STOCK_LOW';
           const alertTitle = alertType === 'STOCK_OUT' ? 'Rupture de stock' : 'Stock faible';
@@ -327,17 +374,14 @@ export class SalesService {
       }
 
       // 12. Enregistrer le log d'audit
-      const userRes = await client.query<{ username: string; role: string }>('SELECT username, role FROM users WHERE id = $1', [sellerId]);
-      const user = userRes.rows[0];
-
       await client.query(
         `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, 'SALE_CREATE', 'SALE', $5, $6, $7, $8)`,
         [
           tenantId,
           sellerId,
-          user?.username || null,
-          user?.role || null,
+          sellerUsername,
+          sellerRole,
           sale.id,
           JSON.stringify({
             transaction_number: sale.transaction_number,
@@ -381,6 +425,13 @@ export class SalesService {
     const saleItems = itemsRes.rows;
 
     await transaction(async (client) => {
+      // Récupérer l'utilisateur qui annule (pour les logs d'audit)
+      const cancelUserRes = await client.query<{ username: string; role: string }>(
+        'SELECT username, role FROM users WHERE id = $1',
+        [userId]
+      );
+      const user = cancelUserRes.rows[0];
+
       // 1. Marquer la vente comme annulée
       await client.query(
         `UPDATE sales 
@@ -392,12 +443,87 @@ export class SalesService {
       // 2. Recréditer les stocks pour chaque produit
       for (const item of saleItems) {
         if (item.product_id) {
-          await client.query(
-            `UPDATE products 
-             SET stock_quantity = stock_quantity + $1, updated_at = CURRENT_TIMESTAMP 
-             WHERE id = $2 AND tenant_id = $3`,
-            [item.quantity, item.product_id, tenantId]
+          // Récupérer l'ancien stock pour le tracer
+          const prodRes = await client.query<{ stock_quantity: number; name: string }>(
+            'SELECT stock_quantity, name FROM products WHERE id = $1 AND tenant_id = $2 FOR UPDATE',
+            [item.product_id, tenantId]
           );
+          const product = prodRes.rows[0];
+          if (product) {
+            const oldStock = Number(product.stock_quantity);
+            const newStock = oldStock + item.quantity;
+            await client.query(
+              `UPDATE products
+               SET stock_quantity = $1, updated_at = CURRENT_TIMESTAMP
+               WHERE id = $2 AND tenant_id = $3`,
+              [newStock, item.product_id, tenantId]
+            );
+
+            // Tracer le mouvement de stock (entrée liée à une annulation de vente)
+            await client.query(
+              `INSERT INTO stock_movements (tenant_id, product_id, movement_type, quantity, old_stock, new_stock, reason, sale_id, user_id)
+               VALUES ($1, $2, 'IN', $3, $4, $5, $6, $7, $8)`,
+              [
+                tenantId,
+                item.product_id,
+                item.quantity,
+                oldStock,
+                newStock,
+                `Annulation vente ${sale.transaction_number}`,
+                saleId,
+                userId
+              ]
+            );
+
+            // Log d'audit STOCK_INCREMENT par produit
+            await client.query(
+              `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
+               VALUES ($1, $2, $3, $4, 'STOCK_INCREMENT', 'PRODUCT', $5, $6, $7, $8)`,
+              [
+                tenantId,
+                userId,
+                user?.username || null,
+                user?.role || null,
+                item.product_id,
+                JSON.stringify({
+                  product_name: product.name,
+                  quantity_restored: item.quantity,
+                  old_stock: oldStock,
+                  new_stock: newStock,
+                  sale_id: saleId,
+                  transaction_number: sale.transaction_number
+                }),
+                clientIp,
+                userAgent
+              ]
+            );
+
+            // Ré-évaluer l'alerte de stock (peut la résoudre si stock remonte au-dessus du seuil)
+            const settingsRes = await client.query<{ global_stock_threshold: number }>(
+              'SELECT global_stock_threshold FROM settings WHERE tenant_id = $1',
+              [tenantId]
+            );
+            const globalThreshold = settingsRes.rows[0]?.global_stock_threshold ?? 20;
+
+            const prodThresholdRes = await client.query<{ stock_threshold: number | null }>(
+              'SELECT stock_threshold FROM products WHERE id = $1',
+              [item.product_id]
+            );
+            const productThreshold = prodThresholdRes.rows[0]?.stock_threshold ?? null;
+
+            const effectiveThreshold = productThreshold !== null ? Number(productThreshold) : globalThreshold;
+            if (newStock > effectiveThreshold) {
+              await client.query(
+                `UPDATE notifications
+                 SET is_resolved = TRUE, resolved_at = CURRENT_TIMESTAMP, is_read = TRUE, read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+                 WHERE tenant_id = $1
+                   AND type IN ('STOCK_LOW', 'STOCK_OUT')
+                   AND is_resolved = FALSE
+                   AND (data->>'product_id') = $2`,
+                [tenantId, item.product_id]
+              );
+            }
+          }
         }
       }
 
@@ -413,9 +539,6 @@ export class SalesService {
       }
 
       // 4. Logger l'action d'annulation
-      const userRes = await client.query<{ username: string; role: string }>('SELECT username, role FROM users WHERE id = $1', [userId]);
-      const user = userRes.rows[0];
-
       await client.query(
         `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, 'SALE_CANCEL', 'SALE', $5, $6, $7, $8)`,
@@ -438,7 +561,7 @@ export class SalesService {
    */
   async getSaleById(tenantId: string, id: string): Promise<Sale & { seller_name: string | null; items: SaleItem[] }> {
     const saleRes = await query<Sale & { seller_name: string | null }>(
-      `SELECT s.*, u.username as seller_name 
+      `SELECT s.*, COALESCE(u.display_name, u.username) as seller_name 
        FROM sales s
        LEFT JOIN users u ON s.seller_id = u.id
        WHERE s.tenant_id = $1 AND s.id = $2`,
@@ -471,7 +594,7 @@ export class SalesService {
 
     const params: any[] = [tenantId, limit, offset];
     let queryText = `
-      SELECT s.*, u.username as seller_name 
+      SELECT s.*, COALESCE(u.display_name, u.username) as seller_name 
       FROM sales s
       LEFT JOIN users u ON s.seller_id = u.id
       WHERE s.tenant_id = $1

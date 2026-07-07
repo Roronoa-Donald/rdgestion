@@ -42,6 +42,48 @@ export class SettingsController {
     const vendor = await settingsService.toggleVendorStatus(tenantId, id, is_active, userId, request.ip, request.headers['user-agent'] || '');
     return reply.send({ success: true, data: vendor, message: `Vendeur ${is_active ? 'activé' : 'désactivé'}.` });
   }
+
+  async changePassword(request: FastifyRequest<{ Body: { old_password: string; new_password: string; new_password_confirm: string } }>, reply: FastifyReply) {
+    const tenantId = request.currentUser!.tenantId;
+    const userId = request.currentUser!.userId;
+    const { old_password, new_password, new_password_confirm } = request.body;
+
+    if (new_password !== new_password_confirm) {
+      const err = new Error('Les mots de passe ne correspondent pas.');
+      (err as any).statusCode = 400;
+      (err as any).code = 'PASSWORD_MISMATCH';
+      throw err;
+    }
+
+    await settingsService.changePassword(tenantId, userId, old_password, new_password, request.ip, request.headers['user-agent'] || 'Unknown');
+    return reply.send({ success: true, message: 'Mot de passe modifié avec succès.' });
+  }
+
+  async resetVendorPassword(request: FastifyRequest<{ Params: { id: string }; Body: { new_password: string; new_password_confirm: string } }>, reply: FastifyReply) {
+    const tenantId = request.currentUser!.tenantId;
+    const adminUserId = request.currentUser!.userId;
+    const { id } = request.params;
+    const { new_password, new_password_confirm } = request.body;
+
+    if (new_password !== new_password_confirm) {
+      const err = new Error('Les mots de passe ne correspondent pas.');
+      (err as any).statusCode = 400;
+      (err as any).code = 'PASSWORD_MISMATCH';
+      throw err;
+    }
+
+    await settingsService.resetVendorPassword(tenantId, id, new_password, adminUserId, request.ip, request.headers['user-agent'] || 'Unknown');
+    return reply.send({ success: true, message: 'Mot de passe du vendeur réinitialisé avec succès.' });
+  }
+
+  async updateVendor(request: FastifyRequest<{ Params: { id: string }; Body: { display_name: string } }>, reply: FastifyReply) {
+    const tenantId = request.currentUser!.tenantId;
+    const adminUserId = request.currentUser!.userId;
+    const { id } = request.params;
+    const { display_name } = request.body;
+    const vendor = await settingsService.updateVendor(tenantId, id, display_name, adminUserId, request.ip, request.headers['user-agent'] || 'Unknown');
+    return reply.send({ success: true, data: vendor });
+  }
 }
 
 export const settingsController = new SettingsController();

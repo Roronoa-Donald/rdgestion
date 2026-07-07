@@ -9,6 +9,7 @@ import { SettingsView } from './views/settings.js';
 import { AdminView } from './views/admin.js';
 import { API } from './api.js';
 import { escapeHtml } from './utils.js';
+import { Toast, LoadingIndicator } from './utils/ui.js';
 
 // Table de routage de la Single Page Application (SPA)
 const routes = {
@@ -85,12 +86,18 @@ async function refreshNotifications() {
   const token = localStorage.getItem('token');
   if (!token) return;
 
+  // Le SuperAdmin n'a pas de boutique ni de notifications tenant
+  const userRaw = localStorage.getItem('user');
+  const user = userRaw ? JSON.parse(userRaw) : null;
+  if (user?.role === 'SUPERADMIN') return;
+
   try {
     const res = await API.notifications.list(false); // Unread
     const badge = document.getElementById('unread-count');
     if (badge) {
-      if (res.data.unread_count > 0) {
-        badge.textContent = res.data.unread_count;
+      const unreadCount = res?.data?.unread_count ?? 0;
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount;
         badge.style.display = 'flex';
       } else {
         badge.style.display = 'none';
@@ -139,12 +146,13 @@ async function openNotificationsModal() {
     const res = await API.notifications.list(true); // Inclure lues
     const listEl = document.getElementById('notif-list-modal');
     
-    if (res.data.notifications.length === 0) {
+    const notifications = res?.data?.notifications ?? [];
+    if (notifications.length === 0) {
       listEl.innerHTML = '<li style="text-align: center; color: var(--text-secondary); padding: 20px 0;">Aucune notification.</li>';
     } else {
-      listEl.innerHTML = res.data.notifications.map(n => {
+      listEl.innerHTML = notifications.map(n => {
         const date = new Date(n.created_at).toLocaleString('fr-FR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        const unreadStyle = !n.is_read ? 'border-left: 3px solid var(--accent-color); background: rgba(255,255,255,0.01);' : '';
+        const unreadStyle = !n.is_read ? 'background: var(--accent-light);' : '';
         const title = escapeHtml(n.title);
         const message = escapeHtml(n.message);
         
@@ -178,6 +186,10 @@ async function openNotificationsModal() {
 
 // Initialisation globale au chargement de la page
 window.addEventListener('DOMContentLoaded', () => {
+  // Initialiser les composants UX
+  Toast.init();
+  LoadingIndicator.init();
+
   // Configurer le bouton de changement de thème
   const themeBtn = document.getElementById('theme-btn');
   themeBtn.addEventListener('click', () => {
@@ -237,8 +249,8 @@ window.addEventListener('DOMContentLoaded', () => {
       } else {
         const banner = document.createElement('div');
         banner.id = 'offline-banner';
-        banner.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; background-color: var(--warning); color: #000; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; z-index: 9999; box-shadow: var(--shadow-md);';
-        banner.innerHTML = 'Mode hors ligne actif. La consultation reste disponible, mais l\'enregistrement des ventes et des produits est bloque.';
+        banner.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; background-color: var(--warning); color: var(--text-primary); text-align: center; padding: 8px; font-size: 13px; font-weight: bold; z-index: 9999; box-shadow: var(--shadow-md);';
+        banner.innerHTML = 'Mode hors ligne actif. La consultation reste disponible, mais l\'enregistrement des ventes et des produits est bloqué.';
         document.body.appendChild(banner);
       }
     }
@@ -252,7 +264,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('✅ Service Worker enregistré avec succès ! Scope:', reg.scope))
         .catch((err) => console.error('Echec d\'enregistrement du Service Worker :', err));
     });
   }

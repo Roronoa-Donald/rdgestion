@@ -1,5 +1,7 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { setupDialog } from '../utils/aria.js';
 
 export class ProductsView {
   constructor(queryParams = {}) {
@@ -151,7 +153,7 @@ export class ProductsView {
    */
   async loadProducts() {
     const tableBody = document.getElementById('products-table-body');
-    tableBody.innerHTML = '<tr><td colspan="9" class="text-center">Chargement en cours...</td></tr>';
+    tableBody.innerHTML = Skeletons.table(9, 5);
 
     try {
       let data;
@@ -209,6 +211,7 @@ export class ProductsView {
           `;
         } else {
           actionButtons = `
+            <button class="btn btn-secondary btn-stock" data-id="${escapeAttr(p.id)}" style="padding: 4px 8px; font-size: 11px;">Stock</button>
             <button class="btn btn-secondary btn-edit" data-id="${escapeAttr(p.id)}" style="padding: 4px 8px; font-size: 11px;">Modifier</button>
             <button class="btn btn-danger btn-delete" data-id="${escapeAttr(p.id)}" style="padding: 4px 8px; font-size: 11px;">Supprimer</button>
           `;
@@ -216,7 +219,7 @@ export class ProductsView {
 
         return `
           <tr>
-            <td><img src="${escapeAttr(imageUrl)}" alt="photo" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: var(--bg-tertiary);"></td>
+            <td><img src="${escapeAttr(imageUrl)}" alt="photo" style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--bg-tertiary);"></td>
             <td><strong>${productName}</strong></td>
             <td><code>${sku}</code></td>
             <td><span class="badge" style="background: var(--bg-tertiary);">${categoryName}</span></td>
@@ -238,14 +241,21 @@ export class ProductsView {
         btn.addEventListener('click', (e) => this.openProductModal(e.target.dataset.id));
       });
 
+      tableBody.querySelectorAll('.btn-stock').forEach(btn => {
+        btn.addEventListener('click', (e) => this.openStockModal(e.target.dataset.id));
+      });
+
       tableBody.querySelectorAll('.btn-delete').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           if (confirm('Voulez-vous vraiment envoyer ce produit à la corbeille ?')) {
             try {
-              await API.products.delete(e.target.dataset.id);
-              await this.loadProducts();
+              await withLoading(e.target, async () => {
+                await API.products.delete(e.target.dataset.id);
+                await this.loadProducts();
+              }, "Suppression...");
+              Toast.success('Produit supprimé.');
             } catch (err) {
-              alert(err.message);
+              Toast.error(err.message);
             }
           }
         });
@@ -254,10 +264,13 @@ export class ProductsView {
       tableBody.querySelectorAll('.btn-restore').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           try {
-            await API.products.restore(e.target.dataset.id);
-            await this.loadProducts();
+            await withLoading(e.target, async () => {
+              await API.products.restore(e.target.dataset.id);
+              await this.loadProducts();
+            }, "Restauration...");
+            Toast.success('Produit restauré.');
           } catch (err) {
-            alert(err.message);
+            Toast.error(err.message);
           }
         });
       });
@@ -280,7 +293,7 @@ export class ProductsView {
         const res = await API.products.get(productId);
         product = res.data;
       } catch (err) {
-        alert(err.message);
+        Toast.error(err.message);
         return;
       }
     }
@@ -295,8 +308,8 @@ export class ProductsView {
       <div class="modal-overlay">
         <div class="modal-content" style="max-width: 650px;">
           <div class="modal-header">
-            <h3 style="font-size: 16px; font-weight: 600;">${isEdit ? 'Modifier' : 'Nouveau'} Produit</h3>
-            <button id="modal-close" style="font-size: 20px;">×</button>
+            <h3 id="product-modal-title" style="font-size: 16px; font-weight: 600;">${isEdit ? 'Modifier' : 'Nouveau'} Produit</h3>
+            <button id="modal-close" style="font-size: 20px;" aria-label="Fermer la fenêtre">×</button>
           </div>
           
           <form id="product-form">
@@ -334,7 +347,7 @@ export class ProductsView {
                 <div class="form-group">
                   <label class="form-label">Quantité en stock</label>
                   <input type="number" id="prod-qty" class="form-input" value="${product?.stock_quantity ?? 0}" min="0" required ${isEdit ? 'disabled' : ''}>
-                  ${isEdit ? '<small style="color: var(--text-secondary)">Ajustez le stock depuis les mouvements (A venir)</small>' : ''}
+                  ${isEdit ? '<small style="color: var(--text-secondary)">Le stock se gère via le bouton « Stock » (entrées/sorties/ajustements traced).</small>' : ''}
                 </div>
 
                 <div class="form-group">
@@ -383,6 +396,10 @@ export class ProductsView {
     closeBtn.addEventListener('click', closeFn);
     cancelBtn.addEventListener('click', closeFn);
 
+    // Accessibilité : transformer .modal-content en role=dialog + trap focus + Escape
+    const dialogEl = container.querySelector('.modal-content');
+    setupDialog(dialogEl, { labelledbyId: 'product-modal-title', closeFn });
+
     // Gérer l'affichage conditionnel de la date d'expiration
     const checkbox = document.getElementById('prod-has-expiry');
     const expiryContainer = document.getElementById('expiry-date-container');
@@ -404,11 +421,11 @@ export class ProductsView {
       formData.append('sku', document.getElementById('prod-sku').value.trim());
       formData.append('purchase_price', document.getElementById('prod-price-purchase').value);
       formData.append('sell_price', document.getElementById('prod-price-sell').value);
-      
+
       if (!isEdit) {
         formData.append('stock_quantity', document.getElementById('prod-qty').value);
       }
-      
+
       const thresholdVal = document.getElementById('prod-threshold').value;
       if (thresholdVal !== '') {
         formData.append('stock_threshold', thresholdVal);
@@ -427,21 +444,25 @@ export class ProductsView {
         formData.append('photo', photoFile);
       }
 
+      const btn = form.querySelector('button[type="submit"]');
       try {
-        if (isEdit) {
-          await API.products.update(productId, formData);
-        } else {
-          await API.products.create(formData);
-          localStorage.setItem('rdg_setup_product_created', 'true');
-        }
-        closeFn();
-        await this.loadProducts();
+        await withLoading(btn, async () => {
+          if (isEdit) {
+            await API.products.update(productId, formData);
+          } else {
+            await API.products.create(formData);
+            localStorage.setItem('rdg_setup_product_created', 'true');
+          }
+          closeFn();
+          await this.loadProducts();
 
-        if (!isEdit && this.queryParams.fromSetup === '1') {
-          window.location.hash = '#/dashboard';
-        }
+          if (!isEdit && this.queryParams.fromSetup === '1') {
+            window.location.hash = '#/dashboard';
+          }
+          Toast.success(isEdit ? 'Produit mis à jour.' : 'Produit créé.');
+        }, "Enregistrement du produit...");
       } catch (err) {
-        alert(err.message);
+        Toast.error(err.message);
       }
     });
   }
@@ -455,8 +476,8 @@ export class ProductsView {
       <div class="modal-overlay">
         <div class="modal-content">
           <div class="modal-header">
-            <h3 style="font-size: 16px; font-weight: 600;">Nouvelle categorie</h3>
-            <button id="modal-close" style="font-size: 20px;">×</button>
+            <h3 id="category-modal-title" style="font-size: 16px; font-weight: 600;">Nouvelle categorie</h3>
+            <button id="modal-close" style="font-size: 20px;" aria-label="Fermer la fenêtre">×</button>
           </div>
           
           <form id="category-form">
@@ -481,21 +502,173 @@ export class ProductsView {
     document.getElementById('modal-close').addEventListener('click', closeFn);
     container.querySelector('.modal-close-btn').addEventListener('click', closeFn);
 
+    setupDialog(container.querySelector('.modal-content'), { labelledbyId: 'category-modal-title', closeFn });
+
     const form = document.getElementById('category-form');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('cat-name').value.trim();
 
+      const btn = form.querySelector('button[type="submit"]');
       try {
-        await API.categories.create(name);
-        closeFn();
-        await this.loadCategories();
+        await withLoading(btn, async () => {
+          await API.categories.create(name);
+          closeFn();
+          await this.loadCategories();
+          Toast.success('Catégorie créée.');
+        }, "Création de la catégorie...");
       } catch (err) {
         if (err.code === 'PRO_REQUIRED') {
-          alert('Fonctionnalité Premium. Veuillez vous abonner à l\'offre PRO pour créer vos propres catégories.');
+          Toast.error('Fonctionnalité Premium. Veuillez vous abonner à l\'offre PRO pour créer vos propres catégories.');
         } else {
-          alert(err.message);
+          Toast.error(err.message);
         }
+      }
+    });
+  }
+
+  async openStockModal(productId) {
+    let product = null;
+    let movements = { movements: [], pagination: { total: 0 } };
+
+    try {
+      const prodRes = await API.products.get(productId);
+      product = prodRes.data;
+      const movRes = await API.products.listStockMovements(productId, { limit: 10 });
+      movements = movRes.data || movRes;
+    } catch (err) {
+      Toast.error(err.message);
+      return;
+    }
+
+    const container = document.getElementById('modal-container');
+    const currentStock = product.stock_quantity ?? 0;
+
+    container.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+          <div class="modal-header">
+            <h3 id="stock-modal-title" style="font-size: 16px; font-weight: 600;">Gestion de stock — ${escapeHtml(product.name)}</h3>
+            <button id="modal-close" style="font-size: 20px;" aria-label="Fermer la fenêtre">×</button>
+          </div>
+          
+          <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+              <div style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Stock actuel</div>
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">${currentStock}</div>
+              </div>
+              <div style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Seuil d'alerte</div>
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">${product.stock_threshold ?? 20}</div>
+              </div>
+            </div>
+
+            <form id="stock-movement-form">
+              <div class="form-group">
+                <label class="form-label">Type de mouvement</label>
+                <select id="movement-type" class="form-input" required>
+                  <option value="IN">Entrée de stock (IN)</option>
+                  <option value="OUT">Sortie de stock (OUT)</option>
+                  <option value="ADJUSTMENT">Ajustement manuel (ADJUSTMENT)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" id="quantity-label">Quantité à ajouter/retirer</label>
+                <input type="number" id="movement-quantity" class="form-input" min="1" placeholder="Ex: 50" required>
+                <small id="quantity-help" style="color: var(--text-secondary);">Pour ADJUSTMENT, saisissez le NOUVEAU stock total.</small>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Motif</label>
+                <input type="text" id="movement-reason" class="form-input" placeholder="Ex: Réassort, Inventaire, Perte..." maxlength="100" required>
+              </div>
+
+              <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                <button type="button" id="modal-cancel" class="btn btn-secondary">Annuler</button>
+                <button type="submit" class="btn btn-primary">Valider le mouvement</button>
+              </div>
+            </form>
+
+            <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--border);">
+
+            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Historique des mouvements</h4>
+            <div style="max-height: 200px; overflow-y: auto;">
+              ${movements.movements?.length > 0 ? `
+                <table class="table" style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Qté</th>
+                      <th>Ancien → Nouveau</th>
+                      <th>Motif</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${movements.movements.map(m => `
+                      <tr>
+                        <td>${new Date(m.created_at).toLocaleDateString('fr-FR')} ${new Date(m.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</td>
+                        <td><span style="font-weight: 600; color: ${m.movement_type === 'IN' ? 'var(--success)' : m.movement_type === 'OUT' ? 'var(--error)' : 'var(--warning)'};">${escapeHtml(m.movement_type)}</span></td>
+                        <td>${m.quantity}</td>
+                        <td>${m.old_stock} → ${m.new_stock}</td>
+                        <td>${escapeHtml(m.reason)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              ` : '<p style="color: var(--text-secondary); font-size: 13px; text-align: center; padding: 20px;">Aucun mouvement enregistré.</p>'}
+            </div>
+            ${movements.pagination?.total > 10 ? `<p style="font-size: 12px; color: var(--text-secondary); text-align: center; margin-top: 8px;">${movements.pagination.total} mouvements au total — consultez les logs pour plus de détails.</p>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const closeFn = () => container.innerHTML = '';
+    document.getElementById('modal-close').addEventListener('click', closeFn);
+    document.getElementById('modal-cancel').addEventListener('click', closeFn);
+
+    setupDialog(container.querySelector('.modal-content'), { labelledbyId: 'stock-modal-title', closeFn });
+
+    const movementTypeSelect = document.getElementById('movement-type');
+    const quantityLabel = document.getElementById('quantity-label');
+    const quantityInput = document.getElementById('movement-quantity');
+
+    const updateLabels = () => {
+      const type = movementTypeSelect.value;
+      if (type === 'IN') {
+        quantityLabel.textContent = 'Quantité à ajouter';
+      } else if (type === 'OUT') {
+        quantityLabel.textContent = 'Quantité à retirer';
+        quantityInput.max = currentStock.toString();
+      } else {
+        quantityLabel.textContent = 'NOUVEAU stock total';
+        quantityInput.min = '0';
+      }
+    };
+
+    movementTypeSelect.addEventListener('change', updateLabels);
+    updateLabels();
+
+    const form = document.getElementById('stock-movement-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const movement_type = document.getElementById('movement-type').value;
+      const quantity = parseInt(document.getElementById('movement-quantity').value, 10);
+      const reason = document.getElementById('movement-reason').value.trim();
+
+      const btn = form.querySelector('button[type="submit"]');
+      try {
+        await withLoading(btn, async () => {
+          await API.products.stockMovement(productId, { movement_type, quantity, reason });
+        }, "Traitement...");
+        closeFn();
+        Toast.success('Mouvement de stock enregistré avec succès.');
+        await this.loadProducts();
+      } catch (err) {
+        Toast.error(err.message);
       }
     });
   }

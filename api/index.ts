@@ -1,34 +1,22 @@
-let app: any = null;
+import { FastifyInstance } from 'fastify';
+import { Server, IncomingMessage, ServerResponse } from 'http';
 
-export default async (req: any, res: any) => {
+export default async (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {
   try {
-    console.log(`[Vercel API] Incoming request: ${req.method} ${req.url}`);
+    const app = await import('../backend/src/app').then(m => m.default as FastifyInstance<Server, IncomingMessage, ServerResponse>);
     
-    if (!app) {
-      console.log('[Vercel API] Importing Fastify application...');
-      const { default: fastifyInstance } = await import('../backend/src/app');
-      app = fastifyInstance;
-      console.log('[Vercel API] Fastify application imported successfully.');
-    }
-    
-    console.log('[Vercel API] Waiting for Fastify ready...');
     await app.ready();
-    console.log('[Vercel API] Fastify ready. Emitting request...');
-    
     app.server.emit('request', req, res);
-  } catch (error: any) {
-    console.error('[Vercel API] CRITICAL ERROR during function execution:', error);
-    if (error.stack) {
-      console.error('[Vercel API] Error stack:', error.stack);
-    }
+  } catch (error) {
+    const err = error as Error;
     
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({
       success: false,
       error: 'FUNCTION_INVOCATION_FAILED',
-      message: error.message || 'Une erreur interne est survenue lors de l\'initialisation du serveur.',
-      details: error.stack
+      message: err.message || 'Une erreur interne est survenue lors de l\'initialisation du serveur.',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
     }));
   }
 };

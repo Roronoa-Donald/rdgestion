@@ -34,3 +34,22 @@ db.sqlite
 *.njsproj
 *.sln
 *.sw?
+# Logs
+*.log
+*.err
+backend-dev.err
+backend-dev.log
+server.log
+
+# Test artifacts
+backend/coverage/
+playwright-report/
+test-results/
+.playwright-mcp/
+
+# Screenshots
+*.png
+
+# Misc tool dirs
+.impeccable/
+.opencode/

@@ -1,7 +1,7 @@
 import { query, transaction } from '../../config/database';
 import { hashPassword, verifyPassword } from '../../utils/password';
 import { signToken } from '../../utils/token';
-import { generateReferralCode } from '../../utils/referral-code';
+import { generateUniqueReferralCode } from '../../utils/referral-code';
 import { RegisterInput, LoginInput, CreateVendorInput, AuthResponse, UserRole } from '../../types/models';
 import { JwtPayload } from '../../config/jwt';
 import { seedCategoriesForTenant } from '../../database/seed/categories';
@@ -30,7 +30,7 @@ export class AuthService {
     const passwordHash = await hashPassword(input.password);
     
     // Générer le code de parrainage pour cette nouvelle boutique
-    const myReferralCode = generateReferralCode(input.shop_name);
+    const myReferralCode = await generateUniqueReferralCode(input.shop_name);
 
     const res = await transaction(async (client) => {
       // 2. Créer le Tenant
@@ -340,6 +340,34 @@ export class AuthService {
     );
 
     return vendor;
+  }
+
+  /**
+   * Déconnexion d'un utilisateur (écriture du journal d'audit LOGOUT).
+   * Route en pass-through : le client doit supprimer son token côté frontend.
+   */
+  async logout(userId: string, clientIp: string, userAgent: string): Promise<void> {
+    // Récupérer l'utilisateur pour obtenir tenant_id, username et role
+    const userRes = await query<{ tenant_id: string; username: string; role: UserRole }>(
+      'SELECT tenant_id, username, role FROM users WHERE id = $1',
+      [userId]
+    );
+    const user = userRes.rows[0];
+
+    // Écrire le log d'audit LOGOUT (même pattern que LOGIN_SUCCESS)
+    await query(
+      `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, 'LOGOUT', 'USER', $2, $5, $6, $7)`,
+      [
+        user ? user.tenant_id : null,
+        userId,
+        user ? user.username : null,
+        user ? user.role : null,
+        JSON.stringify({}),
+        clientIp,
+        userAgent
+      ]
+    );
   }
 }
 export const authService = new AuthService();

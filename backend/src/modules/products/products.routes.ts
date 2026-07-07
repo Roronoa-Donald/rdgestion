@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { productsController } from './products.controller';
+import { stockController } from './stock.controller';
 import { getProductsSchema, productIdParamSchema } from './products.schema';
+import { createStockMovementSchema, getStockMovementsSchema } from './stock.schema';
 import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
 import { checkTenantActive } from '../../middlewares/tenant';
@@ -49,4 +51,16 @@ export async function productsRoutes(fastify: FastifyInstance) {
     schema: productIdParamSchema,
     preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive]
   }, (request: FastifyRequest<any>, reply: FastifyReply) => productsController.restore(request, reply));
+
+  // Mouvement de stock manuel (entrée / sortie / ajustement) — ADMIN uniquement
+  fastify.post('/:id/stock-movements', {
+    schema: createStockMovementSchema,
+    preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive]
+  }, (request: FastifyRequest<any>, reply: FastifyReply) => stockController.createStockMovement(request, reply));
+
+  // Historique des mouvements de stock d'un produit — ADMIN et SELLER
+  fastify.get('/:id/stock-movements', {
+    schema: getStockMovementsSchema,
+    preHandler: [authenticate, authorize(['ADMIN', 'SELLER']), checkTenantActive]
+  }, (request: FastifyRequest<any>, reply: FastifyReply) => stockController.listStockMovements(request, reply));
 }

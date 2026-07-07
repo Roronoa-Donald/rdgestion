@@ -1,21 +1,23 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { setupDialog } from '../utils/aria.js';
 
 export class POSView {
   constructor() {
     this.products = [];
     this.categories = [];
     this.cart = [];
-    
+
     // Filtres catalogue
     this.searchQuery = '';
     this.selectedCategoryId = '';
-    
+
     // Remise & Paiement
     this.discountType = null; // 'FIXED' | 'PERCENTAGE' | null
     this.discountValue = 0;
     this.paymentMethod = 'CASH'; // 'CASH' | 'MOBILE_MONEY'
-    
+
     // Raccourcis clavier handler
     this.boundKeydown = this.handleShortcuts.bind(this);
   }
@@ -28,11 +30,11 @@ export class POSView {
           <div class="pos-search-bar">
             <input type="text" id="pos-search-input" class="form-input" placeholder="Rechercher un produit ou SKU... (F10)" aria-label="Rechercher un produit ou SKU" style="flex: 1; font-size: 15px;">
           </div>
-          
+
           <div class="pos-categories" id="pos-cat-tabs">
             <!-- Injecté par JS -->
           </div>
-          
+
           <div class="pos-grid" id="pos-products-grid">
             <!-- Injecté par JS -->
           </div>
@@ -42,14 +44,14 @@ export class POSView {
         <div class="pos-cart">
           <div class="cart-header">
             <h3 style="font-size: 15px; font-weight: 600;">Panier POS</h3>
-            <button id="btn-clear-cart" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; color: var(--error);">Vider</button>
+            <button id="btn-clear-cart" class="btn btn-secondary" style="padding: 8px 12px; font-size: 12px; color: var(--error); min-width: 44px; min-height: 44px;" title="Vider le panier">Vider</button>
           </div>
-          
+
           <div class="cart-items" id="pos-cart-items">
             <!-- Injecté par JS -->
             <div class="text-center" style="color: var(--text-secondary); margin: auto 0; font-size: 13px;">Panier vide. Cliquez sur des produits pour les ajouter.</div>
           </div>
-          
+
           <div class="cart-summary">
             <div class="summary-row">
               <span>Sous-total :</span>
@@ -58,12 +60,12 @@ export class POSView {
 
             <!-- Configuration de remise -->
             <div style="display: flex; gap: 8px; margin: 4px 0;">
-              <select id="pos-discount-type" class="form-input" style="width: 100px; padding: 6px 8px; font-size: 12px;">
+              <select id="pos-discount-type" class="form-input" style="width: 100px; padding: 6px 8px; font-size: 12px;" aria-label="Type de remise">
                 <option value="">Pas de remise</option>
                 <option value="PERCENTAGE">% Remise</option>
                 <option value="FIXED">Valeur fixe</option>
               </select>
-              <input type="number" id="pos-discount-value" class="form-input" style="flex: 1; padding: 6px 8px; font-size: 12px; display: none;" min="0" placeholder="Valeur...">
+              <input type="number" id="pos-discount-value" class="form-input" style="flex: 1; padding: 6px 8px; font-size: 12px; display: none;" min="0" placeholder="Valeur..." aria-label="Valeur de la remise">
             </div>
 
             <div class="summary-row" id="discount-display" style="display: none; color: var(--error);">
@@ -95,21 +97,22 @@ export class POSView {
               </div>
             </div>
 
-            <button id="btn-validate-sale" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 15px; font-weight: 700; background-color: #10b981;">
+            <button id="btn-validate-sale" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 15px; font-weight: 700; background-color: var(--success); color: white;">
               VALIDER LA VENTE (F12)
             </button>
           </div>
         </div>
-      </div>
 
-      <!-- Modale de succès / Impression ticket -->
-      <div id="pos-modal-container"></div>
+        <!-- Modale de succès / Impression ticket -->
+        <div id="pos-modal-container"></div>
+      </div>
     `;
   }
 
   async afterRender() {
-    document.getElementById('current-view-title').textContent = 'Point de Vente (POS)';
     
+    document.getElementById('current-view-title').textContent = 'Point de Vente (POS)';
+
     // Attacher écouteur claviers
     window.addEventListener('keydown', this.boundKeydown);
 
@@ -152,19 +155,15 @@ export class POSView {
     document.getElementById('btn-validate-sale').addEventListener('click', () => this.validateTransaction());
 
     // Charger les catégories & produits
+    
     await this.loadPOSData();
+    
   }
 
-  /**
-   * Nettoie les écouteurs claviers lors du changement de vue.
-   */
   destroy() {
     window.removeEventListener('keydown', this.boundKeydown);
   }
 
-  /**
-   * Gestionnaire des raccourcis claviers.
-   */
   handleShortcuts(e) {
     if (e.key === 'F10') {
       e.preventDefault();
@@ -185,9 +184,6 @@ export class POSView {
     }
   }
 
-  /**
-   * Sélectionne le mode de paiement et met à jour l'UI.
-   */
   selectPaymentMethod(method) {
     this.paymentMethod = method;
     const cashBtn = document.getElementById('pay-cash-btn');
@@ -199,10 +195,10 @@ export class POSView {
       cashBtn.style.backgroundColor = 'var(--accent-color)';
       momoBtn.className = 'btn btn-secondary';
       momoBtn.style.backgroundColor = '';
-      
+
       extraContainer.innerHTML = `
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" style="font-size: 12px;">Montant reçu en espèces (FCFA)</label>
+          <label class="form-label" for="cash-received" style="font-size: 12px;">Montant reçu en espèces (FCFA)</label>
           <input type="number" id="cash-received" class="form-input" style="font-size: 14px; font-weight: bold;" min="0" placeholder="0">
           <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-top: 6px; color: var(--success);">
             <span>Monnaie rendue :</span>
@@ -211,7 +207,6 @@ export class POSView {
         </div>
       `;
 
-      // Relier calcul monnaie
       document.getElementById('cash-received').addEventListener('input', (e) => {
         this.calculateChange();
       });
@@ -231,19 +226,31 @@ export class POSView {
     }
   }
 
-  /**
-   * Récupère les données de base pour le POS.
-   */
   async loadPOSData() {
+    
+    const catTabs = document.getElementById('pos-cat-tabs');
+    const grid = document.getElementById('pos-products-grid');
+
+    if (!catTabs || !grid) {
+      console.error('[POS-Audit] ❌ CRITICAL: DOM elements pos-cat-tabs or pos-products-grid NOT FOUND!');
+      return;
+    }
+
+    
+    catTabs.innerHTML = Skeletons.grid(6, 'row');
+    grid.innerHTML = Skeletons.grid(12, 'card');
+    
+
     try {
+      
       this.categories = await API.categories.list();
       
-      // Obtenir la liste complète des produits
+
+      
       const res = await API.products.list({ page: 1, limit: 100 });
       this.products = res.products;
+      
 
-      // Afficher les onglets catégories
-      const catTabs = document.getElementById('pos-cat-tabs');
       catTabs.innerHTML = `
         <button class="category-tab active" data-id="">Tous</button>
       ` + this.categories.map(c => `<button class="category-tab" data-id="${escapeAttr(c.id)}">${escapeHtml(c.name)}</button>`).join('');
@@ -258,19 +265,20 @@ export class POSView {
       });
 
       this.renderProducts();
+      
     } catch (e) {
-      console.error(e);
+      console.error('[POS-Audit] ❌ Error in loadPOSData:', e);
+      catTabs.innerHTML = '';
+      grid.innerHTML = `<div class="text-center" style="color: var(--error); padding: 40px 0;">Erreur de chargement des données.</div>`;
     }
+    
   }
 
-  /**
-   * Affiche la grille des produits filtrée.
-   */
   renderProducts() {
     const grid = document.getElementById('pos-products-grid');
-    
+
     const filtered = this.products.filter(p => {
-      const matchSearch = p.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
+      const matchSearch = p.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
                           (p.sku && p.sku.toLowerCase().includes(this.searchQuery.toLowerCase()));
       const matchCat = !this.selectedCategoryId || p.category_id === this.selectedCategoryId;
       return matchSearch && matchCat;
@@ -285,26 +293,25 @@ export class POSView {
       const imageUrl = p.image_url ? p.image_url : 'https://placehold.co/150x150/161d30/f9fafb?text=Image';
       const isOutOfStock = p.stock_quantity <= 0;
       const productName = escapeHtml(p.name);
-      
+
       return `
-        <div class="product-card" data-id="${escapeAttr(p.id)}" style="${isOutOfStock ? 'opacity: 0.5;' : ''}">
-          <img class="product-image" src="${escapeAttr(imageUrl)}" alt="photo">
+        <button class="product-card" data-id="${escapeAttr(p.id)}" style="${isOutOfStock ? 'opacity: 0.5;' : ''}" aria-label="Ajouter ${productName} au panier">
+          <img class="product-image" src="${escapeAttr(imageUrl)}" alt="Photo de ${productName}">
           <div class="product-title">${productName}</div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
             <span class="product-price">${Number(p.sell_price).toLocaleString()} FCFA</span>
             <span class="product-stock ${isOutOfStock ? 'badge-danger' : ''}">${isOutOfStock ? 'Rupture' : p.stock_quantity + ' dispo'}</span>
           </div>
-        </div>
+        </button>
       `;
     }).join('');
 
-    // Clic pour ajouter au panier
     grid.querySelectorAll('.product-card').forEach(card => {
       card.addEventListener('click', () => {
         const id = card.dataset.id;
         const prod = this.products.find(p => p.id === id);
         if (prod.stock_quantity <= 0) {
-          alert('Produit en rupture de stock.');
+          Toast.error('Produit en rupture de stock.');
           return;
         }
         this.addToCart(prod);
@@ -312,14 +319,11 @@ export class POSView {
     });
   }
 
-  /**
-   * Ajoute un produit au panier ou incrémente sa quantité.
-   */
   addToCart(product) {
     const existing = this.cart.find(item => item.product_id === product.id);
     if (existing) {
       if (existing.quantity >= product.stock_quantity) {
-        alert(`Impossible d'ajouter plus d'unités. Stock disponible max: ${product.stock_quantity}`);
+        Toast.error(`Impossible d'ajouter plus d'unités. Stock disponible max: ${product.stock_quantity}`);
         return;
       }
       existing.quantity++;
@@ -335,12 +339,9 @@ export class POSView {
     this.updateCartUI();
   }
 
-  /**
-   * Met à jour la liste des articles et calcule les totaux du panier.
-   */
   updateCartUI() {
     const container = document.getElementById('pos-cart-items');
-    
+
     if (this.cart.length === 0) {
       container.innerHTML = `<div class="text-center" style="color: var(--text-secondary); margin: auto 0; font-size: 13px;">Panier vide. Cliquez sur des produits pour les ajouter.</div>`;
       this.calculateTotals();
@@ -367,7 +368,6 @@ export class POSView {
       </div>
     `).join('');
 
-    // Ajusteurs quantité & remove
     container.querySelectorAll('.btn-qty-minus').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.id;
@@ -387,7 +387,7 @@ export class POSView {
           item.quantity++;
           this.updateCartUI();
         } else {
-          alert('Stock maximum atteint.');
+          Toast.error('Stock maximum atteint.');
         }
       });
     });
@@ -403,9 +403,6 @@ export class POSView {
     this.calculateTotals();
   }
 
-  /**
-   * Calcule le sous-total, la remise et le montant net à payer.
-   */
   calculateTotals() {
     let subtotal = 0;
     this.cart.forEach(item => {
@@ -422,7 +419,7 @@ export class POSView {
     const total = Math.max(0, subtotal - discountAmount);
 
     document.getElementById('pos-subtotal').textContent = `${subtotal.toLocaleString()} FCFA`;
-    
+
     const discDisplay = document.getElementById('discount-display');
     if (discountAmount > 0) {
       discDisplay.style.display = 'flex';
@@ -433,22 +430,18 @@ export class POSView {
 
     document.getElementById('pos-total').textContent = `${total.toLocaleString()} FCFA`;
 
-    // Recalculer monnaie si cash
     if (this.paymentMethod === 'CASH') {
       this.calculateChange();
     }
   }
 
-  /**
-   * Calcule la monnaie rendue.
-   */
   calculateChange() {
     const receivedInput = document.getElementById('cash-received');
     if (!receivedInput) return;
 
     const received = Number(receivedInput.value) || 0;
     const subtotal = this.cart.reduce((sum, item) => sum + Number(item.sell_price) * item.quantity, 0);
-    
+
     let discountAmount = 0;
     if (this.discountType === 'PERCENTAGE') {
       discountAmount = (subtotal * this.discountValue) / 100;
@@ -461,12 +454,9 @@ export class POSView {
     document.getElementById('cash-change').textContent = `${change.toLocaleString()} FCFA`;
   }
 
-  /**
-   * Valide la vente et l'envoie à l'API.
-   */
   async validateTransaction() {
     if (this.cart.length === 0) {
-      alert('Le panier est vide.');
+      Toast.info('Le panier est vide.');
       return;
     }
 
@@ -478,11 +468,10 @@ export class POSView {
       payment_method: this.paymentMethod
     };
 
-    // Valider compléments
     if (this.paymentMethod === 'MOBILE_MONEY') {
       const ref = document.getElementById('momo-ref').value.trim();
       if (!ref) {
-        alert('Veuillez renseigner la référence de transaction Mobile Money.');
+        Toast.error('Veuillez renseigner la référence de transaction Mobile Money.');
         return;
       }
       payload.momo_reference = ref;
@@ -490,7 +479,7 @@ export class POSView {
       const received = Number(document.getElementById('cash-received').value) || 0;
       const total = Number(document.getElementById('pos-total').textContent.replace(/[^0-9]/g, ''));
       if (received < total) {
-        alert('Le montant reçu en espèces est insuffisant.');
+        Toast.error('Le montant reçu en espèces est insuffisant.');
         return;
       }
       payload.amount_received = received;
@@ -501,38 +490,35 @@ export class POSView {
       payload.discount_value = this.discountValue;
     }
 
+    const btn = document.getElementById('btn-validate-sale');
     try {
-      const res = await API.sales.create(payload);
-      const sale = res.data.sale;
-      
-      // Ouvrir boîte de succès + ticket
-      this.openSuccessModal(sale);
+      await withLoading(btn, async () => {
+        const res = await API.sales.create(payload);
+        const sale = res.data.sale;
 
-      // Vider le panier
-      this.cart = [];
-      this.updateCartUI();
-      
-      // Recharger le catalogue pour rafraîchir les stocks à jour
-      await this.loadPOSData();
+        this.openSuccessModal(sale);
+
+        this.cart = [];
+        this.updateCartUI();
+
+        await this.loadPOSData();
+      }, "Enregistrement de la vente...");
     } catch (err) {
       if (err.code === 'DAILY_LIMIT_REACHED') {
-        alert('La limite de 30 ventes par jour est atteinte pour votre plan FREE. Veuillez souscrire à l\'offre PRO pour un usage illimité.');
+        Toast.error('La limite de 30 ventes par jour est atteinte pour\ l\'offre FREE.');
       } else {
-        alert(err.message);
+        Toast.error(err.message);
       }
     }
   }
 
-  /**
-   * Ouvre la modale d'impression de ticket et de succès.
-   */
   openSuccessModal(sale) {
     const modalContainer = document.getElementById('pos-modal-container');
     modalContainer.innerHTML = `
       <div class="modal-overlay">
         <div class="modal-content" style="text-align: center; padding: 32px;">
           <div class="success-mark" aria-hidden="true">OK</div>
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Vente enregistrée !</h2>
+          <h2 id="pos-success-modal-title" style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Vente enregistrée !</h2>
           <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
             La transaction <strong>${sale.transaction_number}</strong> d'un montant de <strong>${Number(sale.total_amount).toLocaleString()} FCFA</strong> a été créée.
           </p>
@@ -551,10 +537,14 @@ export class POSView {
 
     const closeFn = () => modalContainer.innerHTML = '';
     document.getElementById('btn-close-success').addEventListener('click', closeFn);
-    
-    // Clic pour imprimer (ouvre la page ticket HTML dans une iframe invisible ou nouvelle fenêtre)
-    document.getElementById('btn-print-ticket').addEventListener('click', () => {
-      API.sales.openTicket(sale.id).catch((err) => alert(err.message));
+
+    setupDialog(modalContainer.querySelector('.modal-content'), { labelledbyId: 'pos-success-modal-title', closeFn });
+
+    document.getElementById('btn-print-ticket').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-print-ticket');
+      await withLoading(btn, async () => {
+        await API.sales.openTicket(sale.id);
+      }, "Génération du ticket...");
     });
   }
 }

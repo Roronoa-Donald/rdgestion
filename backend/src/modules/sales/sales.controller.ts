@@ -70,7 +70,13 @@ export class SalesController {
   async list(request: FastifyRequest<{ Querystring: SalesQueryFilters }>, reply: FastifyReply) {
     const tenantId = request.currentUser!.tenantId;
     const result = await salesService.listSales(tenantId, request.query);
-    return reply.send(result);
+    return reply.send({
+      success: true,
+      data: {
+        sales: result.sales,
+        pagination: result.pagination
+      }
+    });
   }
 
   /**

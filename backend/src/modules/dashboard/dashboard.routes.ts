@@ -9,4 +9,9 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
   fastify.get('/', {
     preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive]
   }, (request: FastifyRequest, reply: FastifyReply) => dashboardController.getStats(request, reply));
+
+  // Alias rétro-compatible /stats
+  fastify.get('/stats', {
+    preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive]
+  }, (request: FastifyRequest, reply: FastifyReply) => dashboardController.getStats(request, reply));
 }

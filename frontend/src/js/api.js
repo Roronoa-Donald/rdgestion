@@ -1,4 +1,5 @@
 const BASE_URL = `${window.location.origin}/api`;
+import { LoadingIndicator } from './utils/ui.js';
 
 function buildQuery(filters = {}) {
   const query = new URLSearchParams();
@@ -42,6 +43,8 @@ async function request(endpoint, options = {}) {
   };
 
   try {
+    LoadingIndicator.show();
+
     const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
     // Déconnexion automatique si token expiré / invalide
@@ -65,53 +68,143 @@ async function request(endpoint, options = {}) {
   } catch (error) {
     console.error(`Erreur API [${endpoint}] :`, error);
     throw error;
+  } finally {
+    LoadingIndicator.hide();
   }
 }
 
 async function requestText(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
-  const headers = {
-    ...options.headers,
-  };
+  LoadingIndicator.show();
+  try {
+    const token = localStorage.getItem('token');
+    const headers = {
+      ...options.headers,
+    };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Bloquer les actions d'écriture hors-ligne
+    if (!navigator.onLine && options.method && options.method !== 'GET') {
+      const err = new Error('Action impossible hors ligne. Veuillez restaurer votre connexion internet.');
+      err.code = 'OFFLINE_ERROR';
+      throw err;
+    }
+
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
+      localStorage.clear();
+      window.dispatchEvent(new CustomEvent('auth-expired'));
+      throw new Error('Votre session a expiré. Veuillez vous reconnecter.');
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const err = new Error(data.message || 'Une erreur est survenue.');
+      err.statusCode = response.status;
+      err.code = data.error || 'SERVER_ERROR';
+      throw err;
+    }
+
+    return response.text();
+  } catch (error) {
+    console.error(`Erreur API [${endpoint}] :`, error);
+    throw error;
+  } finally {
+    LoadingIndicator.hide();
   }
+}
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+/**
+ * Télécharge un fichier binaire depuis l'API (exports PDF/Excel) en utilisant
+ * le JWT stocké en localStorage, puis déclenche le téléchargement navigateur.
+ * Décode le nom du fichier depuis l'en-tête Content-Disposition si présent.
+ *
+ * @param {string} endpoint — chemin relatif (ex: '/exports/sales?format=xlsx')
+ */
+async function downloadExport(endpoint) {
+  LoadingIndicator.show();
+  try {
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
-  if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
-    localStorage.clear();
-    window.dispatchEvent(new CustomEvent('auth-expired'));
-    throw new Error('Votre session a expiré. Veuillez vous reconnecter.');
+    const response = await fetch(`${BASE_URL}${endpoint}`, { headers });
+
+    if (response.status === 401) {
+      localStorage.clear();
+      window.dispatchEvent(new CustomEvent('auth-expired'));
+      throw new Error('Votre session a expiré. Veuillez vous reconnecter.');
+    }
+
+    if (!response.ok) {
+      let message = `Erreur ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data.message || data.error || message;
+      } catch (_) { /* réponse binaire d'erreur: ignorer */ }
+      const err = new Error(message);
+      err.statusCode = response.status;
+      throw err;
+    }
+
+    const blob = await response.blob();
+
+    // Déduire le nom de fichier depuis Content-Disposition
+    const cd = response.headers.get('Content-Disposition') || '';
+    let filename = `export-${Date.now()}`;
+    const m = cd.match(/filename="([^"]+)"/);
+    if (m && m[1]) {
+      filename = m[1];
+    } else {
+      const ext = (response.headers.get('Content-Type') || '').includes('pdf') ? 'pdf' : 'xlsx';
+      filename = `export-${Date.now()}.${ext}`;
+    }
+
+    // Déclencher le téléchargement côté navigateur
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Libérer la mémoire après un court délai (Safari)
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    return { success: true, filename };
+  } catch (error) {
+    console.error(`Erreur API [${endpoint}] :`, error);
+    throw error;
+  } finally {
+    LoadingIndicator.hide();
   }
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    const err = new Error(data.message || 'Une erreur est survenue.');
-    err.statusCode = response.status;
-    err.code = data.error || 'SERVER_ERROR';
-    throw err;
-  }
-
-  return response.text();
 }
 
 export const API = {
   auth: {
+    async login(payload) {
+      return request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
     async register(payload) {
       return request('/auth/register', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
     },
-    async login(payload) {
-      return request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(payload)
+    async logout() {
+      return request('/auth/logout', {
+        method: 'POST'
       });
     },
     async createVendor(payload) {
@@ -154,6 +247,16 @@ export const API = {
       return request(`/products/${id}/restore`, {
         method: 'POST'
       });
+    },
+    async stockMovement(productId, payload) {
+      return request(`/products/${productId}/stock-movements`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+    async listStockMovements(productId, filters = {}) {
+      const queryString = buildQuery(filters);
+      return request(`/products/${productId}/stock-movements${queryString ? '?' + queryString : ''}`);
     }
   },
 
@@ -297,6 +400,35 @@ export const API = {
     },
     async getReferrals() {
       return request('/admin/referrals');
+    }
+  },
+  exports: {
+    /**
+     * Exporte le catalogue produits (xlsx|pdf).
+     */
+    async products(format = 'xlsx') {
+      return downloadExport(`/exports/products?format=${encodeURIComponent(format)}`);
+    },
+    /**
+     * Exporte l'historique des ventes sur une période (optionnel).
+     * @param {string} format 'xlsx' | 'pdf'
+     * @param {object} range { from, to } dates ISO 'YYYY-MM-DD'
+     */
+    async sales(format = 'xlsx', range = {}) {
+      const qs = new URLSearchParams();
+      qs.set('format', format);
+      if (range.from) qs.set('from', range.from);
+      if (range.to) qs.set('to', range.to);
+      return downloadExport(`/exports/sales?${qs.toString()}`);
+    },
+    /**
+     * Rapport fin de journée (pdf|xlsx) optionnellement daté.
+     */
+    async dailyReport(format = 'pdf', date = null) {
+      const qs = new URLSearchParams();
+      qs.set('format', format);
+      if (date) qs.set('date', date);
+      return downloadExport(`/exports/daily-report?${qs.toString()}`);
     }
   }
 };

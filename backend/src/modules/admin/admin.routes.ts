@@ -4,6 +4,8 @@ import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
 import { checkTenantActive } from '../../middlewares/tenant';
 import { auditDecorator } from '../../middlewares/audit';
+import { env } from '../../config/env';
+import { runSubscriptionExpirationJob } from '../../scheduler/subscriptionScheduler';
 
 export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', auditDecorator);
@@ -75,4 +77,53 @@ export async function adminRoutes(fastify: FastifyInstance) {
     },
     preHandler: [authenticate, authorize(['SUPERADMIN'])]
   }, (request: FastifyRequest<any>, reply: FastifyReply) => adminController.toggleTenantStatus(request, reply));
+
+  // Statistiques globales de la plateforme (SUPERADMIN)
+  fastify.get('/stats', {
+    preHandler: [authenticate, authorize(['SUPERADMIN'])]
+  }, (request: FastifyRequest, reply: FastifyReply) => adminController.getPlatformStats(request, reply));
+
+  // Détail d'une boutique (SUPERADMIN)
+  fastify.get('/tenants/:id', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'string' } },
+        additionalProperties: false
+      }
+    },
+    preHandler: [authenticate, authorize(['SUPERADMIN'])]
+  }, (request: FastifyRequest<any>, reply: FastifyReply) => adminController.getTenantDetail(request, reply));
+
+  // ─── CRON (HTTP, auth par secret partagé) ──────────────────
+  // Déclenche le job d'expiration des abonnements (notifications J-7/J-3/J-1 + expiration).
+  // Pas d'auth JWT : authentifié via le header x-cron-secret.
+  fastify.post('/cron/expire-subscriptions', async (request: FastifyRequest, reply: FastifyReply) => {
+    const provided = (request.headers['x-cron-secret'] as string) || '';
+    const expected = env.CRON_SECRET;
+
+    // En dev / fallback vide : autoriser même sans secret
+    if (expected === '' && env.NODE_ENV === 'development') {
+      // autorisé
+    } else if (provided !== expected) {
+      return reply.status(401).send({
+        success: false,
+        error: 'UNAUTHORIZED',
+        message: 'Secret cron invalide ou manquant.'
+      });
+    }
+
+    try {
+      const result = await runSubscriptionExpirationJob();
+      return reply.send({ success: true, data: result });
+    } catch (err) {
+      request.log.error(err);
+      return reply.status(500).send({
+        success: false,
+        error: 'SERVER_ERROR',
+        message: 'Échec du job d\'expiration des abonnements.'
+      });
+    }
+  });
 }

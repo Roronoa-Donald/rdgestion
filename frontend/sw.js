@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rdgestion-cache-v4';
+const CACHE_NAME = 'rdgestion-cache-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const STATIC_ASSETS = [
   '/src/js/app.js',
   '/src/js/api.js',
   '/src/js/utils.js',
+  '/src/js/utils/ui.js',
   '/src/js/router.js',
   '/src/js/views/auth.js',
   '/src/js/views/dashboard.js',
@@ -23,7 +24,6 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Service Worker: mise en cache des assets statiques...');
       return cache.addAll(STATIC_ASSETS);
     })
   );
@@ -37,7 +37,6 @@ self.addEventListener('activate', (e) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('Service Worker: nettoyage de l\'ancien cache', key);
             return caches.delete(key);
           }
         })
@@ -75,20 +74,21 @@ self.addEventListener('fetch', (e) => {
         })
     );
   } else {
-    // Stratégie Cache-First pour les ressources statiques
+    // Stratégie Stale-While-Revalidate pour les ressources statiques
+    // (sert le cache immédiatement MAIS récupère la version fraîche en fond)
     e.respondWith(
       caches.match(e.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(e.request).then((response) => {
-          // Mettre en cache les nouveaux fichiers statiques à la volée (ex: images)
+        const fetchPromise = fetch(e.request).then((response) => {
+          // Mettre en cache la nouvelle version
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(e.request, clone);
           });
           return response;
-        });
+        }).catch(() => cachedResponse);
+
+        // Retourne le cache immédiatement s'il existe, sinon attend le réseau
+        return cachedResponse || fetchPromise;
       })
     );
   }

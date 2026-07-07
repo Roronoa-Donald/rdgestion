@@ -50,5 +50,15 @@ export class AdminController {
     );
     return reply.send({ success: true, data: result });
   }
+
+  async getPlatformStats(request: FastifyRequest, reply: FastifyReply) {
+    const stats = await adminService.getPlatformStats();
+    return reply.send({ success: true, data: { stats } });
+  }
+
+  async getTenantDetail(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    const detail = await adminService.getTenantDetail(request.params.id);
+    return reply.send({ success: true, data: detail });
+  }
 }
 export const adminController = new AdminController();

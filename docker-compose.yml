@@ -24,15 +24,15 @@ services:
       dockerfile: backend/Dockerfile
     container_name: rdgestion_backend
     ports:
-      - "3000:3000"
+      - "8080:8080"
     environment:
       DATABASE_URL: postgresql://rdgestion_user:${POSTGRES_PASSWORD:-rdgestion_password}@postgres:5432/rdgestion_db
       JWT_SECRET: ${JWT_SECRET:-change_me_rdgestion_dev_jwt_secret_minimum_256_bits}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
-      PORT: 3000
+      PORT: 8080
       HOST: 0.0.0.0
       NODE_ENV: production
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
       RATE_LIMIT_AUTH_MAX: ${RATE_LIMIT_AUTH_MAX:-10}
       SUPERADMIN_PHONE: "${SUPERADMIN_PHONE:-+22890000000}"

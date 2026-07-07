@@ -19,7 +19,10 @@ import { logsRoutes } from './modules/logs/logs.routes';
 import { notificationsRoutes } from './modules/notifications/notifications.routes';
 import { settingsRoutes } from './modules/settings/settings.routes';
 import { adminRoutes } from './modules/admin/admin.routes';
+import { paymentsRoutes } from './modules/payments/payments.routes';
+import { exportsRoutes } from './modules/exports/exports.routes';
 import { rateLimitConfig } from './middlewares/rate-limit';
+import { startSubscriptionScheduler } from './scheduler/subscriptionScheduler';
 
 const fastify = Fastify({
   logger: (env.NODE_ENV === 'development' && !process.env.VERCEL) ? {
@@ -104,10 +107,17 @@ fastify.register(async () => {
   console.log('[Boot Plugin] Running SuperAdmin bootstrap...');
   await bootstrapSuperAdmin();
   console.log('🎉 [Boot Plugin] SuperAdmin bootstrap finished.');
+
+  // Démarrer le scheduler d'expiration des abonnements (no-op sur Vercel)
+  console.log('[Boot Plugin] Starting subscription scheduler...');
+  startSubscriptionScheduler();
+  console.log('✅ [Boot Plugin] Subscription scheduler started.');
 });
 
 // 2. Enregistrer les plugins de sécurité et utilitaires généraux
-fastify.register(fastifyHelmet);
+fastify.register(fastifyHelmet, {
+  contentSecurityPolicy: false, // Disable Helmet's CSP to rely on the meta tag in index.html
+});
 fastify.register(registerCors);
 
 // Rate Limiting global
@@ -134,11 +144,20 @@ fastify.register(logsRoutes, { prefix: '/api/logs' });
 fastify.register(notificationsRoutes, { prefix: '/api/notifications' });
 fastify.register(settingsRoutes, { prefix: '/api/settings' });
 fastify.register(adminRoutes, { prefix: '/api/admin' });
+fastify.register(paymentsRoutes, { prefix: '/api/payments' });
+fastify.register(exportsRoutes, { prefix: '/api/exports' });
 
 // 5. Servir les fichiers statiques du dossier frontend au chemin racine
 fastify.register(fastifyStatic, {
   root: path.resolve(__dirname, '../../frontend'),
   prefix: '/',
+  wildcard: true,
+  index: ['index.html'],
+});
+
+// Route racine redirigeant vers index.html
+fastify.get('/', async (request, reply) => {
+  return reply.sendFile('index.html');
 });
 
 // 6. Route de santé simple

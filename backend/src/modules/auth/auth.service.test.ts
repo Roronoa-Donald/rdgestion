@@ -23,6 +23,10 @@ vi.mock('../../database/seed/categories', () => ({
   seedCategoriesForTenant: vi.fn().mockResolvedValue(undefined)
 }));
 
+vi.mock('../../utils/referral-code', () => ({
+  generateUniqueReferralCode: vi.fn().mockResolvedValue('RD-TESTSHOP-123')
+}));
+
 describe('AuthService', () => {
   let authService: AuthService;
 

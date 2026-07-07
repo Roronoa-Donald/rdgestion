@@ -57,6 +57,30 @@ export class AuthController {
       data: { vendor },
     });
   }
+
+  /**
+   * Déconnexion de l'utilisateur courant.
+   */
+  async logout(request: FastifyRequest, reply: FastifyReply) {
+    const currentUser = request.currentUser;
+    if (!currentUser) {
+      return reply.status(401).send({
+        success: false,
+        error: 'UNAUTHORIZED',
+        message: 'Utilisateur non authentifié.'
+      });
+    }
+
+    const userIp = request.ip;
+    const userAgent = request.headers['user-agent'] || 'Unknown';
+
+    await authService.logout(currentUser.userId, userIp, userAgent);
+
+    return reply.send({
+      success: true,
+      message: 'Déconnexion réussie'
+    });
+  }
 }
 
 export const authController = new AuthController();

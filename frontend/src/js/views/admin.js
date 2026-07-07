@@ -1,5 +1,7 @@
 import { API } from '../api.js';
-import { escapeAttr, escapeHtml } from '../utils.js';
+import { escapeHtml, escapeAttr } from '../utils.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { setupDialog } from '../utils/aria.js';
 
 export class AdminView {
   constructor() {
@@ -178,7 +180,7 @@ export class AdminView {
               await API.admin.toggleTenant(id, nextActive);
               await this.loadTenants();
             } catch (err) {
-              alert(err.message);
+              Toast.error(err.message);
             }
           }
         });
@@ -199,8 +201,8 @@ export class AdminView {
       <div class="modal-overlay">
         <div class="modal-content">
           <div class="modal-header">
-            <h3 style="font-size: 16px; font-weight: 600;">Activer plan PRO : ${escapeHtml(tenantName)}</h3>
-            <button id="modal-close" style="font-size: 20px;">×</button>
+            <h3 id="activate-pro-modal-title" style="font-size: 16px; font-weight: 600;">Activer plan PRO : ${escapeHtml(tenantName)}</h3>
+            <button id="modal-close" style="font-size: 20px;" aria-label="Fermer la fenêtre">×</button>
           </div>
           
           <form id="activate-pro-form">
@@ -228,6 +230,8 @@ export class AdminView {
     document.getElementById('modal-close').addEventListener('click', closeFn);
     container.querySelector('.modal-close-btn').addEventListener('click', closeFn);
 
+    setupDialog(container.querySelector('.modal-content'), { labelledbyId: 'activate-pro-modal-title', closeFn });
+
     const form = document.getElementById('activate-pro-form');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -236,10 +240,10 @@ export class AdminView {
       try {
         await API.admin.activateSubscription(tenantId, billingType);
         closeFn();
-        alert(`Le plan PRO (${billingType}) a été configuré avec succès pour la boutique.`);
+        Toast.success(`PRO ${billingType} activé pour ${escapeHtml(tenantName)}`);
         await this.loadTenants();
       } catch (err) {
-        alert(err.message);
+        Toast.error(err.message);
       }
     });
   }

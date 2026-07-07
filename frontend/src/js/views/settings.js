@@ -1,5 +1,7 @@
 import { API } from '../api.js';
-import { escapeAttr, escapeHtml } from '../utils.js';
+import { escapeHtml, escapeAttr } from '../utils.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { setupTablist, setupDialog } from '../utils/aria.js';
 
 export class SettingsView {
   constructor(queryParams = {}) {
@@ -16,7 +18,7 @@ export class SettingsView {
     return `
       <div class="fade-in">
         <!-- Menu d'onglets (Tabs) -->
-        <div style="display: flex; gap: 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 24px; overflow-x: auto; padding-bottom: 8px;">
+        <div id="settings-tablist" style="display: flex; gap: 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 24px; overflow-x: auto; padding-bottom: 8px;">
           <button class="btn btn-secondary tab-link" data-tab="profile" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Boutique & ticket</button>
           <button class="btn btn-secondary tab-link" data-tab="vendors" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Comptes vendeurs</button>
           <button class="btn btn-secondary tab-link" data-tab="referrals" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Parrainage & code</button>
@@ -34,22 +36,24 @@ export class SettingsView {
 
   async afterRender() {
     document.getElementById('current-view-title').textContent = 'Paramètres';
-    
-    // Attacher onglets
-    const links = document.querySelectorAll('.tab-link');
+     
+    // Attacher onglets avec sémantique ARIA tablist/tab/tabpanel + navigation flèches
+    const tablistEl = document.getElementById('settings-tablist');
+    setupTablist(tablistEl, () => this.activeTab, (id) => {
+      this.activeTab = id;
+      this.switchTab();
+    });
     const syncTabStyles = () => {
-      links.forEach(l => {
+      tablistEl.querySelectorAll('.tab-link').forEach(l => {
         const isActive = l.dataset.tab === this.activeTab;
         l.classList.toggle('active', isActive);
         l.style.borderBottomColor = isActive ? 'var(--accent-color)' : 'transparent';
         l.style.color = isActive ? 'var(--text-primary)' : 'var(--text-secondary)';
       });
     };
-    links.forEach(link => {
-      link.addEventListener('click', (e) => {
-        this.activeTab = e.currentTarget.dataset.tab;
+    tablistEl.querySelectorAll('.tab-link').forEach(link => {
+      link.addEventListener('click', () => {
         syncTabStyles();
-        this.switchTab();
       });
     });
 
@@ -65,6 +69,7 @@ export class SettingsView {
     }
 
     await this.switchTab();
+    syncTabStyles();
   }
 
   /**
@@ -226,10 +231,9 @@ export class SettingsView {
       };
       try {
         this.profile = (await API.settings.updateProfile(payload)).data;
-        alert('Profil de la boutique mis à jour avec succès.');
-        window.location.reload(); // Recharger pour rafraîchir les noms etc.
+        Toast.success('Profil de la boutique mis à jour avec succès.');
       } catch (err) {
-        alert(err.message);
+        Toast.error(err.message);
       }
     });
 
@@ -242,9 +246,9 @@ export class SettingsView {
       };
       try {
         this.settings = (await API.settings.update(payload)).data;
-        alert('Limites de configuration enregistrées.');
+        Toast.success('Limites de configuration enregistrées.');
       } catch (err) {
-        alert(err.message);
+        Toast.error(err.message);
       }
     });
 
@@ -259,9 +263,9 @@ export class SettingsView {
       };
       try {
         this.settings = (await API.settings.update(payload)).data;
-        alert('Configuration du ticket enregistrée.');
+        Toast.success('Configuration du ticket enregistrée.');
       } catch (err) {
-        alert(err.message);
+        Toast.error(err.message);
       }
     });
   }
@@ -354,7 +358,7 @@ export class SettingsView {
               await API.settings.toggleVendor(id, nextActive);
               await this.loadVendors();
             } catch (err) {
-              alert(err.message);
+              Toast.error(err.message);
             }
           }
         });
@@ -373,8 +377,8 @@ export class SettingsView {
         <div class="modal-overlay">
           <div class="modal-content">
             <div class="modal-header">
-              <h3 style="font-size: 16px; font-weight: 600;">Nouveau vendeur</h3>
-              <button id="modal-close" style="font-size: 20px;">×</button>
+              <h3 id="vendor-modal-title" style="font-size: 16px; font-weight: 600;">Nouveau vendeur</h3>
+              <button id="modal-close" style="font-size: 20px;" aria-label="Fermer la fenêtre">×</button>
             </div>
             
             <form id="create-vendor-form">
@@ -407,6 +411,8 @@ export class SettingsView {
       const closeFn = () => container.innerHTML = '';
       document.getElementById('modal-close').addEventListener('click', closeFn);
       container.querySelector('.modal-close-btn').addEventListener('click', closeFn);
+
+      setupDialog(container.querySelector('.modal-content'), { labelledbyId: 'vendor-modal-title', closeFn });
 
       const form = document.getElementById('create-vendor-form');
       form.addEventListener('submit', async (e) => {
@@ -441,7 +447,7 @@ export class SettingsView {
           const res = await API.auth.createVendor({ password, password_confirm });
           const v = res.data.vendor;
           closeFn();
-          alert(`Compte vendeur créé avec succès !\nIdentifiant de connexion : ${v.username}`);
+          Toast.success(`Compte vendeur créé ! Identifiant : ${v.username}`);
           await this.loadVendors();
         } catch (err) {
           errEl.textContent = err.message || 'Erreur lors de la création.';
@@ -567,7 +573,7 @@ export class SettingsView {
     document.getElementById('btn-copy-code').addEventListener('click', () => {
       const code = document.getElementById('ref-code-text').textContent;
       navigator.clipboard.writeText(code).then(() => {
-        alert('Code parrainage copié dans le presse-papiers !');
+        Toast.success('Code parrainage copié !');
       }).catch(err => {
         console.error(err);
       });

@@ -31,6 +31,15 @@ interface EnvConfig {
   // Super Admin
   SUPERADMIN_PHONE: string;
   SUPERADMIN_PASSWORD: string;
+
+  // CRON (secret partagé pour les endpoints cron HTTP)
+  CRON_SECRET: string;
+
+  // Paiements
+  PAYMENT_PROVIDER: 'manual' | 'fedapay';
+  FEDAPAY_API_KEY: string;
+  FEDAPAY_PUBLIC_KEY: string;
+  FEDAPAY_API_SECRET: string;
 }
 
 function getEnvString(key: string, defaultValue?: string): string {
@@ -63,7 +72,17 @@ function validateNodeEnv(value: string): 'development' | 'production' | 'test' {
 
 export const env: EnvConfig = {
   DATABASE_URL: getEnvString('DATABASE_URL'),
-  JWT_SECRET: getEnvString('JWT_SECRET'),
+  JWT_SECRET: (() => {
+    const secret = getEnvString('JWT_SECRET');
+    if (secret.includes('change_moi') || secret.includes('change_me') || secret.length < 32) {
+      const msg = `JWT_SECRET trop faible ou valeur placeholder détectée. Utilisez une clé secrète d'au moins 32 caractères (256 bits).`;
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(msg);
+      }
+      console.warn(`⚠️  WARNING: ${msg}`);
+    }
+    return secret;
+  })(),
   JWT_EXPIRES_IN: getEnvString('JWT_EXPIRES_IN', '24h'),
   PORT: getEnvNumber('PORT', 3000),
   HOST: getEnvString('HOST', '0.0.0.0'),
@@ -75,4 +94,9 @@ export const env: EnvConfig = {
   UPLOAD_DIR: getEnvString('UPLOAD_DIR', './uploads'),
   SUPERADMIN_PHONE: getEnvString('SUPERADMIN_PHONE'),
   SUPERADMIN_PASSWORD: getEnvString('SUPERADMIN_PASSWORD'),
+  CRON_SECRET: getEnvString('CRON_SECRET', ''),
+  PAYMENT_PROVIDER: getEnvString('PAYMENT_PROVIDER', 'manual') as 'manual' | 'fedapay',
+  FEDAPAY_API_KEY: getEnvString('FEDAPAY_API_KEY', ''),
+  FEDAPAY_PUBLIC_KEY: getEnvString('FEDAPAY_PUBLIC_KEY', ''),
+  FEDAPAY_API_SECRET: getEnvString('FEDAPAY_API_SECRET', ''),
 };

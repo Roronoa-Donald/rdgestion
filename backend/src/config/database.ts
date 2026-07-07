@@ -1,15 +1,21 @@
-import { Pool, PoolConfig } from 'pg';
+import { Pool, PoolConfig, types } from 'pg';
 import { env } from './env';
+
+types.setTypeParser(1700, (val: string | null) => val === null ? null : parseFloat(val));
 
 const isLocalDb = env.DATABASE_URL.includes('localhost') || env.DATABASE_URL.includes('127.0.0.1');
 
 const poolConfig: PoolConfig = {
   connectionString: env.DATABASE_URL,
-  max: 20,                    // Nombre max de connexions dans le pool
-  idleTimeoutMillis: 30000,   // Fermer les connexions inactives après 30s
-  connectionTimeoutMillis: 5000, // Timeout de connexion à 5s
-  ssl: isLocalDb ? false : { rejectUnauthorized: false } // Requis pour Aiven, Neon, Supabase, Vercel...
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+  ssl: isLocalDb ? false : { rejectUnauthorized: false }
 };
+
+if (!isLocalDb && env.NODE_ENV === 'production') {
+  console.warn('⚠️  SECURITY: SSL rejectUnauthorized=DISABLED. Configurez un CA certificate pour la production.');
+}
 
 export const pool = new Pool(poolConfig);
 

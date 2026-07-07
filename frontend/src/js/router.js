@@ -1,3 +1,6 @@
+const DEBUG = false;
+function log(...args) { if (DEBUG) console.log(...args); }
+
 export class Router {
   constructor(routes, containerId) {
     this.routes = routes;
@@ -93,19 +96,20 @@ export class Router {
 
     // Instancier et charger la nouvelle vue
     try {
+      log(`[Router] Loading view: ${hash}`);
       this.container.innerHTML = '<div class="text-center" style="padding: 100px 0;"><div class="skeleton-loader" style="width: 50px; height: 50px; border-radius: 50%; margin: 0 auto;"></div></div>';
-      
+
       const viewInstance = new route.view(queryParams);
       this.currentView = viewInstance;
-      
+
       const renderedHtml = await viewInstance.render();
-      this.container.innerHTML = renderedHtml;
-      
+      this.container.innerHTML = `<div class="fade-in">${renderedHtml}</div>`;
+
       if (typeof viewInstance.afterRender === 'function') {
         await viewInstance.afterRender();
       }
     } catch (error) {
-      console.error('Erreur chargement vue :', error);
+      console.error(`[Router-Audit] ❌ FATAL ERROR loading view ${hash}:`, error);
       this.container.innerHTML = `
         <div class="card text-center" style="max-width: 500px; margin: 50px auto; padding: 40px;">
           <h2 style="color: var(--error); margin-bottom: 12px;">Erreur de chargement</h2>

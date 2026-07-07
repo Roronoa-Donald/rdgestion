@@ -46,6 +46,7 @@ export type AuditAction =
   | 'USER_CREATED'
   | 'USER_DISABLED'
   | 'USER_ENABLED'
+  | 'USER_UPDATE'
   | 'USER_PASSWORD_RESET'
   | 'PRODUCT_ADD'
   | 'PRODUCT_UPDATE'
@@ -67,9 +68,14 @@ export type AuditAction =
   | 'REFERRAL_CREATED'
   | 'REFERRAL_COMPLETED'
   | 'REFERRAL_REWARD_GRANTED'
-  | 'TENANT_CREATED';
+  | 'TENANT_CREATED'
+  | 'EXPORT_PRODUCTS'
+  | 'EXPORT_SALES'
+  | 'EXPORT_DAILY_REPORT';
 
-export type EntityType = 'PRODUCT' | 'SALE' | 'USER' | 'TENANT' | 'SETTINGS' | 'SUBSCRIPTION' | 'REFERRAL' | 'CATEGORY' | 'NOTIFICATION';
+export type EntityType = 'PRODUCT' | 'SALE' | 'USER' | 'TENANT' | 'SETTINGS' | 'SUBSCRIPTION' | 'REFERRAL' | 'CATEGORY' | 'NOTIFICATION' | 'EXPORT';
+
+export type ExportFormat = 'xlsx' | 'pdf';
 
 // --- Modèles ---
 
@@ -243,6 +249,22 @@ export interface DailySaleCount {
   tenant_id: string;
   sale_date: Date;
   count: number;
+}
+
+export type StockMovementType = 'IN' | 'OUT' | 'ADJUSTMENT';
+
+export interface StockMovement {
+  id: string;
+  tenant_id: string;
+  product_id: string;
+  movement_type: StockMovementType;
+  quantity: number;
+  old_stock: number;
+  new_stock: number;
+  reason: string | null;
+  sale_id: string | null;
+  user_id: string | null;
+  created_at: Date;
 }
 
 // --- DTOs (Data Transfer Objects) ---

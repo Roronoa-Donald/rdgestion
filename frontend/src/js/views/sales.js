@@ -1,5 +1,7 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
+import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { setupDialog } from '../utils/aria.js';
 
 export class SalesView {
   constructor() {
@@ -51,13 +53,16 @@ export class SalesView {
           </form>
         </div>
 
+        <!-- Conteneur pour le panneau de détails (s'affiche entre filtres et tableau) -->
+        <div id="sales-modal-container"></div>
+
         <!-- Tableau des ventes -->
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 600;">Historique des Ventes</h3>
             <button id="btn-export-sales" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Exporter rapport (PRO)</button>
           </div>
-          
+
           <div class="table-responsive">
             <table class="table">
               <thead>
@@ -81,7 +86,7 @@ export class SalesView {
 
           <!-- Pagination -->
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
-            <span id="sales-pagination-text" style="font-size: 13px; color: var(--text-secondary);">Affichage 0 de 0</span>
+            <span id="sales-pagination-text" style="font-size: 13px; color: var(--text-secondary);">Affichage de 0 sur 0 vente(s)</span>
             <div style="display: flex; gap: 8px;">
               <button id="btn-sales-prev" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Précédent</button>
               <button id="btn-sales-next" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Suivant</button>
@@ -89,62 +94,68 @@ export class SalesView {
           </div>
         </div>
 
-        <!-- Modale Détails Vente -->
-        <div id="sales-modal-container"></div>
       </div>
     `;
   }
 
   async afterRender() {
     document.getElementById('current-view-title').textContent = 'Historique des Ventes';
-    
-    // Attacher filtres
+
     const form = document.getElementById('sales-filter-form');
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const btn = form.querySelector('button[type="submit"]');
+
       this.filters.from = document.getElementById('filter-from').value;
       this.filters.to = document.getElementById('filter-to').value;
       this.filters.status = document.getElementById('filter-status').value;
       this.filters.payment_method = document.getElementById('filter-method').value;
       this.currentPage = 1;
-      this.loadSales();
+
+      await withLoading(btn, () => this.loadSales(), "Filtrage des ventes...");
     });
 
-    document.getElementById('btn-reset-filters').addEventListener('click', () => {
+    document.getElementById('btn-reset-filters').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
       form.reset();
       this.filters = { from: '', to: '', status: '', payment_method: '' };
       this.currentPage = 1;
-      this.loadSales();
+      await withLoading(btn, () => this.loadSales(), "Réinitialisation...");
     });
 
-    document.getElementById('btn-export-sales').addEventListener('click', () => {
-      // Explication PRO
-      alert('Cette fonctionnalité d\'export Excel/PDF nécessite l\'abonnement premium PRO. Veuillez souscrire depuis le menu paramètres.');
-    });
-
-    document.getElementById('btn-sales-prev').addEventListener('click', () => {
-      if (this.currentPage > 1) {
-        this.currentPage--;
-        this.loadSales();
+    document.getElementById('btn-export-sales').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      try {
+        await withLoading(btn, () => API.exports.sales('xlsx', {
+          from: this.filters.from || undefined,
+          to: this.filters.to || undefined
+        }), "Export Excel en cours...");
+        Toast.success("Export Excel téléchargé.");
+      } catch (err) {
+        Toast.error(err.message || "Échec de l'export (peut-être réservé au plan PRO).");
       }
     });
 
-    document.getElementById('btn-sales-next').addEventListener('click', () => {
+    document.getElementById('btn-sales-prev').addEventListener('click', async (e) => {
+      if (this.currentPage > 1) {
+        this.currentPage--;
+        await withLoading(e.currentTarget, () => this.loadSales(), "Chargement de la page...");
+      }
+    });
+
+    document.getElementById('btn-sales-next').addEventListener('click', async (e) => {
       if (this.currentPage < this.pagination.pages) {
         this.currentPage++;
-        this.loadSales();
+        await withLoading(e.currentTarget, () => this.loadSales(), "Chargement de la page...");
       }
     });
 
     await this.loadSales();
   }
 
-  /**
-   * Récupère et affiche les ventes avec pagination.
-   */
   async loadSales() {
     const tableBody = document.getElementById('sales-table-body');
-    tableBody.innerHTML = '<tr><td colspan="9" class="text-center">Chargement...</td></tr>';
+    tableBody.innerHTML = Skeletons.table(9, 5);
 
     try {
       const res = await API.sales.list({
@@ -156,44 +167,50 @@ export class SalesView {
         payment_method: this.filters.payment_method || undefined
       });
 
-      this.sales = res.sales;
-      this.pagination = res.pagination;
+      if (!res || (typeof res !== 'object')) {
+        throw new Error('Réponse API invalide.');
+      }
 
-      // Mettre à jour boutons pagination
-      document.getElementById('sales-pagination-text').textContent = 
-        `Affichage de ${this.sales.length} sur ${this.pagination.total} vente(s)`;
+      const data = res.data || res;
+      this.sales = Array.isArray(data?.sales) ? data.sales : [];
+      this.pagination = data?.pagination || {};
+
+      document.getElementById('sales-pagination-text').textContent =
+        `Affichage de ${this.sales.length} sur ${this.pagination.total || 0} vente(s)`;
       document.getElementById('btn-sales-prev').disabled = this.currentPage === 1;
-      document.getElementById('btn-sales-next').disabled = this.currentPage >= this.pagination.pages;
+      document.getElementById('btn-sales-next').disabled = this.currentPage >= (this.pagination.pages || 1);
 
       if (this.sales.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="9" class="text-center" style="color: var(--text-secondary);">Aucune vente enregistrée.</td></tr>';
         return;
       }
 
+      const fmtAmt = (val) => {
+        if (val === null || val === undefined) return 'N/A';
+        const n = Number(val);
+        return isNaN(n) ? 'N/A' : n.toLocaleString();
+      };
+
       tableBody.innerHTML = this.sales.map(s => {
-        const datetime = new Date(s.created_at).toLocaleString('fr-FR', {
-          year: 'numeric', month: '2-digit', day: '2-digit',
-          hour: '2-digit', minute: '2-digit'
-        });
-        const transactionNumber = escapeHtml(s.transaction_number);
-        const sellerName = escapeHtml(s.seller_name || '');
-        
-        const methodLabel = s.payment_method === 'MOBILE_MONEY' ? 'Mobile Money' : 'Especes';
-        const discountText = Number(s.discount_amount) > 0 ? `-${Number(s.discount_amount).toLocaleString()}` : '0';
-        
-        const statusBadge = s.is_cancelled 
-          ? '<span class="badge badge-danger">Annulée</span>' 
+        const datetime = s.created_at ? new Date(s.created_at).toLocaleString('fr-FR') : 'Date inconnue';
+        const transactionNumber = escapeHtml(s.transaction_number || 'N/A');
+        const sellerName = escapeHtml(s.seller_name || 'Inconnu');
+        const methodLabel = s.payment_method === 'MOBILE_MONEY' ? 'Mobile Money' : 'Espèces';
+        const discountVal = Number(s.discount_amount || 0);
+        const discountText = discountVal > 0 ? `-${discountVal.toLocaleString()}` : '0';
+        const statusBadge = s.is_cancelled
+          ? '<span class="badge badge-danger">Annulée</span>'
           : '<span class="badge badge-success">Validée</span>';
 
         return `
           <tr style="${s.is_cancelled ? 'opacity: 0.6;' : ''}">
             <td><strong>${transactionNumber}</strong></td>
             <td>${datetime}</td>
-            <td><code>${sellerName}</code></td>
+            <td><code style="font-size: 12px;">${sellerName}</code></td>
             <td>${methodLabel}</td>
-            <td>${Number(s.subtotal).toLocaleString()}</td>
+            <td>${fmtAmt(s.subtotal)}</td>
             <td style="color: var(--error);">${discountText}</td>
-            <td style="font-weight: 700;">${Number(s.total_amount).toLocaleString()} FCFA</td>
+            <td style="font-weight: 700;">${fmtAmt(s.total_amount)} FCFA</td>
             <td style="text-align: center;">${statusBadge}</td>
             <td style="text-align: right;">
               <button class="btn btn-secondary btn-detail" data-id="${escapeAttr(s.id)}" style="padding: 4px 8px; font-size: 11px;">Voir</button>
@@ -202,9 +219,10 @@ export class SalesView {
         `;
       }).join('');
 
-      // Actions détails
       tableBody.querySelectorAll('.btn-detail').forEach(btn => {
-        btn.addEventListener('click', (e) => this.openDetailModal(e.target.dataset.id));
+        btn.addEventListener('click', async (e) => {
+          await withLoading(e.currentTarget, () => this.openDetailModal(e.currentTarget.dataset.id), "Chargement des détails...");
+        });
       });
 
     } catch (e) {
@@ -213,118 +231,144 @@ export class SalesView {
     }
   }
 
-  /**
-   * Ouvre la modale d'affichage détaillé de la facture / vente.
-   */
   async openDetailModal(saleId) {
-    let sale = null;
+    let raw = null;
     try {
-      sale = await API.sales.get(saleId);
+      raw = await API.sales.get(saleId);
     } catch (err) {
-      alert(err.message);
+      Toast.error(err.message);
+      return;
+    }
+
+    const sale = raw?.data || raw;
+
+    if (!sale || !sale.id) {
+      Toast.error('Données de vente invalides ou introuvables.');
       return;
     }
 
     const container = document.getElementById('sales-modal-container');
     const currency = 'FCFA';
-    const transactionNumber = escapeHtml(sale.transaction_number);
-    const sellerName = escapeHtml(sale.seller_name || '');
+    const transactionNumber = escapeHtml(sale.transaction_number || 'N/A');
+    const sellerName = escapeHtml(sale.seller_name || 'Inconnu');
     const momoReference = escapeHtml(sale.momo_reference || '');
 
-    // Rendre l'état d'annulation dans la modale
+    const formattedDate = sale.created_at
+      ? new Date(sale.created_at).toLocaleString('fr-FR')
+      : 'Date inconnue';
+
+    const formatAmount = (val) => {
+      if (val === null || val === undefined) return null;
+      const n = Number(val);
+      if (isNaN(n)) return null;
+      return n.toLocaleString();
+    };
+
+    const subtotal = formatAmount(sale.subtotal);
+    const discount = formatAmount(sale.discount_amount);
+    const total = formatAmount(sale.total_amount);
+
+    const items = Array.isArray(sale.items) ? sale.items : [];
+
     const cancelSection = sale.is_cancelled
-      ? `<div class="badge badge-danger" style="display: block; text-align: center; padding: 10px; font-size: 13px; margin-bottom: 16px;">
-          Annulée le ${new Date(sale.cancelled_at).toLocaleString('fr-FR')} par un administrateur.
-         </div>`
-      : `<button id="btn-modal-cancel-sale" class="btn btn-danger" style="width: 100%; padding: 10px; font-size: 13px; margin-top: 12px;">
-          Annuler cette vente (recrediter les stocks)
-         </button>`;
+      ? `<div class="badge badge-danger sale-cancel-badge">Annulée le ${sale.cancelled_at ? new Date(sale.cancelled_at).toLocaleString('fr-FR') : 'Date inconnue'} par un administrateur.</div>`
+      : `<button id="btn-modal-cancel-sale" class="btn btn-danger sale-cancel-btn">Annuler cette vente (recrediter les stocks)</button>`;
 
     container.innerHTML = `
-      <div class="modal-overlay">
-        <div class="modal-content" style="max-width: 550px;">
-          <div class="modal-header">
-            <h3 style="font-size: 15px; font-weight: 600;">Détail Facture : ${transactionNumber}</h3>
-            <button id="modal-close" style="font-size: 20px;">×</button>
-          </div>
-          
-          <div class="modal-body">
-            ${cancelSection}
+      <div class="card sale-detail-inline" role="dialog" aria-modal="true" aria-labelledby="sale-detail-title">
+        <div class="sale-detail-header">
+          <h3 id="sale-detail-title">Détail Facture : ${transactionNumber}</h3>
+          <button id="panel-close-sale" class="panel-close-btn" title="Fermer (Échap)" aria-label="Fermer le panneau de détail">×</button>
+        </div>
 
-            <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <div><strong>Date :</strong> ${new Date(sale.created_at).toLocaleString('fr-FR')}</div>
-              <div><strong>Vendeur :</strong> ${sellerName}</div>
-              <div><strong>Mode :</strong> ${sale.payment_method === 'MOBILE_MONEY' ? 'Mobile Money' : 'Espèces'}</div>
-              ${sale.momo_reference ? `<div><strong>Réf MoMo :</strong> <code>${momoReference}</code></div>` : ''}
-            </div>
+        ${cancelSection}
 
-            <!-- Liste des articles -->
-            <div style="border: 1px solid var(--border-color); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;">
-              <table class="table" style="font-size: 13px;">
-                <thead style="background-color: var(--bg-tertiary);">
-                  <tr>
-                    <th style="padding: 8px 12px;">Article</th>
-                    <th style="text-align: center; padding: 8px 12px;">Qté</th>
-                    <th style="text-align: right; padding: 8px 12px;">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${sale.items.map(item => `
+        <div class="sale-info-grid">
+          <div class="sale-info-item"><span class="sale-info-label">Date :</span> ${formattedDate}</div>
+          <div class="sale-info-item"><span class="sale-info-label">Vendeur :</span> ${sellerName}</div>
+          <div class="sale-info-item"><span class="sale-info-label">Mode :</span> ${sale.payment_method === 'MOBILE_MONEY' ? 'Mobile Money' : 'Espèces'}</div>
+          ${sale.momo_reference ? `<div class="sale-info-item"><span class="sale-info-label">Réf MoMo :</span> <code class="sale-momo-ref">${momoReference}</code></div>` : ''}
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Article</th>
+                <th class="text-center">Qté</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.length > 0
+                ? items.map(item => {
+                    const itemPrice = formatAmount(item.unit_sell_price);
+                    const itemTotal = formatAmount(item.total_price);
+                    return `
                     <tr>
-                      <td style="padding: 8px 12px;">${escapeHtml(item.product_name)}<br><small style="color: var(--text-secondary);">${Number(item.unit_sell_price).toLocaleString()} FCFA</small></td>
-                      <td style="text-align: center; padding: 8px 12px;">${item.quantity}</td>
-                      <td style="text-align: right; font-weight: 600; padding: 8px 12px;">${Number(item.total_price).toLocaleString()} FCFA</td>
+                      <td>${escapeHtml(item.product_name || 'Produit inconnu')}<br><small class="text-secondary">${itemPrice !== null ? itemPrice + ' ' + currency : 'N/A'}</small></td>
+                      <td class="text-center">${item.quantity || 0}</td>
+                      <td class="text-right font-semibold">${itemTotal !== null ? itemTotal + ' ' + currency : 'N/A'}</td>
                     </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
+                  `;}).join('')
+                : '<tr><td colspan="3" class="text-center text-secondary" style="padding: var(--spacing-lg, 24px);">Aucun article associé à cette vente. Vérifiez l\'intégrité de la transaction.</td></tr>'
+              }
+            </tbody>
+          </table>
+        </div>
 
-            <!-- Résumé financier -->
-            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; border-top: 1px dashed var(--border-color); padding-top: 12px;">
-              <div style="display: flex; justify-content: space-between;">
-                <span>Sous-total :</span>
-                <span>${Number(sale.subtotal).toLocaleString()} ${currency}</span>
-              </div>
-              ${Number(sale.discount_amount) > 0 ? `
-                <div style="display: flex; justify-content: space-between; color: var(--error);">
-                  <span>Remise :</span>
-                  <span>-${Number(sale.discount_amount).toLocaleString()} ${currency}</span>
-                </div>
-              ` : ''}
-              <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 6px;">
-                <span>Total Net :</span>
-                <span>${Number(sale.total_amount).toLocaleString()} ${currency}</span>
-              </div>
-            </div>
-
-            <button id="btn-modal-reprint-ticket" class="btn btn-primary" style="width: 100%; margin-top: 16px; padding: 10px; font-size: 13px; background-color: var(--accent-color);">
-              Reimprimer le ticket de caisse
-            </button>
+        <div class="sale-totals">
+          <div class="sale-total-row">
+            <span class="text-secondary">Sous-total :</span>
+            <span class="font-semibold">${subtotal !== null ? subtotal + ' ' + currency : 'N/A'}</span>
           </div>
+          ${formatAmount(sale.discount_amount) > 0 ? `
+            <div class="sale-total-row sale-discount-row">
+              <span>Remise :</span>
+              <span class="font-semibold">-${discount} ${currency}</span>
+            </div>
+          ` : ''}
+          <div class="sale-total-row sale-total-final">
+            <span>TOTAL NET :</span>
+            <span>${total !== null ? total + ' ' + currency : 'N/A'}</span>
+          </div>
+        </div>
+
+        <div class="sale-detail-actions">
+          <button id="btn-modal-reprint-ticket" class="btn btn-primary">Imprimer le ticket de caisse</button>
         </div>
       </div>
     `;
 
-    const closeFn = () => container.innerHTML = '';
-    document.getElementById('modal-close').addEventListener('click', closeFn);
+    const panel = container.querySelector('.sale-detail-inline');
+    const closeFn = () => {
+      container.innerHTML = '';
+    };
 
-    // Reprint ticket
+    let releaseDialog = null;
+    try {
+      releaseDialog = setupDialog(panel, { labelledbyId: 'sale-detail-title', closeFn });
+    } catch (_) {}
+
+    document.getElementById('panel-close-sale').addEventListener('click', closeFn);
+
     document.getElementById('btn-modal-reprint-ticket').addEventListener('click', () => {
-      API.sales.openTicket(sale.id).catch((err) => alert(err.message));
+      API.sales.openTicket(sale.id).catch((err) => Toast.error(err.message));
     });
 
-    // Annuler la vente
     const cancelBtn = document.getElementById('btn-modal-cancel-sale');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', async () => {
         if (confirm('Êtes-vous sûr de vouloir ANNULER cette vente ? Le stock de tous ses produits sera recrédité en base.')) {
           try {
-            await API.sales.cancel(sale.id);
-            closeFn();
-            await this.loadSales();
+            await withLoading(cancelBtn, async () => {
+              await API.sales.cancel(sale.id);
+              closeFn();
+              await this.loadSales();
+            }, "Annulation de la vente...");
+            Toast.success('Vente annulée et stocks recrédités.');
           } catch (err) {
-            alert(err.message);
+            Toast.error(err.message);
           }
         }
       });
