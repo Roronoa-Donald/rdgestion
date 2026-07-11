@@ -5,13 +5,14 @@ import { setupTablist, setupDialog } from '../utils/aria.js';
 
 export class SettingsView {
   constructor(queryParams = {}) {
-    const allowedTabs = ['profile', 'vendors', 'referrals'];
+    const allowedTabs = ['profile', 'vendors', 'referrals', 'subscription'];
     this.queryParams = queryParams;
     this.activeTab = allowedTabs.includes(queryParams.tab) ? queryParams.tab : 'profile';
     this.vendors = [];
     this.settings = {};
     this.profile = {};
     this.referralInfo = {};
+    this.subscription = {}; // { tier, status, end_date, daily_limit_count, daily_limit_max }
   }
 
   async render() {
@@ -22,6 +23,7 @@ export class SettingsView {
           <button class="btn btn-secondary tab-link" data-tab="profile" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Boutique & ticket</button>
           <button class="btn btn-secondary tab-link" data-tab="vendors" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Comptes vendeurs</button>
           <button class="btn btn-secondary tab-link" data-tab="referrals" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Parrainage & code</button>
+          <button class="btn btn-secondary tab-link" data-tab="subscription" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">💎 Abonnement PRO</button>
         </div>
 
         <div id="settings-tab-content">
@@ -64,6 +66,7 @@ export class SettingsView {
     try {
       this.settings = (await API.settings.get()).data;
       this.profile = (await API.settings.getProfile()).data;
+      this.subscription = (await API.admin.getSubscription()).data || {};
     } catch (e) {
       console.error(e);
     }
@@ -85,11 +88,14 @@ export class SettingsView {
       container.innerHTML = this.renderVendorsTab();
       await this.loadVendors();
       this.bindVendorsTabEvents();
-    } else {
+    } else if (this.activeTab === 'referrals') {
       localStorage.setItem('rdg_setup_referral_seen', 'true');
       container.innerHTML = this.renderReferralsTab();
       await this.loadReferrals();
       this.bindReferralsTabEvents();
+    } else if (this.activeTab === 'subscription') {
+      container.innerHTML = this.renderSubscriptionTab();
+      this.bindSubscriptionTabEvents();
     }
   }
 
@@ -578,5 +584,128 @@ export class SettingsView {
         console.error(err);
       });
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Onglet Abonnement PRO
+  // ═══════════════════════════════════════════════════════════
+
+  renderSubscriptionTab() {
+    const sub = this.subscription;
+    const tier = sub.tier || 'FREE';
+    const status = sub.status || 'active';
+    const endDate = sub.end_date
+      ? new Date(sub.end_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+      : '—';
+    const dailyUsed = sub.daily_limit_count || 0;
+    const dailyMax = sub.daily_limit_max || 30;
+    const isPro = tier === 'PRO_MONTHLY' || tier === 'PRO_LIFETIME';
+
+    const proBadge = isPro
+      ? `<span style="background: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;">💎 PRO ${tier === 'PRO_LIFETIME' ? 'À VIE' : 'MENSUEL'}</span>`
+      : `<span style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;">FREE</span>`;
+
+    const pricingCards = isPro ? '' : `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px;">
+        <div style="border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; text-align: center;">
+          <h4 style="margin: 0 0 8px;">PRO Mensuel</h4>
+          <p style="font-size: 2rem; font-weight: 700; margin: 8px 0;">5 000 <span style="font-size: 1rem; font-weight: 400;">FCFA/mois</span></p>
+          <ul style="text-align: left; margin: 16px 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.9rem;">
+            <li>✅ Ventes illimitées</li>
+            <li>✅ Tickets personnalisés (logo, slogan)</li>
+            <li>✅ Exports Excel & PDF</li>
+            <li>✅ Catégories personnalisées</li>
+          </ul>
+          <button id="btn-upgrade-monthly" class="btn btn-primary" style="width: 100%;">💳 Payer 5 000 FCFA / mois</button>
+        </div>
+        <div style="border: 2px solid var(--accent); border-radius: 12px; padding: 24px; text-align: center; position: relative;">
+          <span style="position: absolute; top: -12px; right: 20px; background: var(--accent); color: white; padding: 2px 10px; border-radius: 10px; font-size: 0.75rem;">ÉCONOMIE</span>
+          <h4 style="margin: 0 0 8px;">PRO À Vie</h4>
+          <p style="font-size: 2rem; font-weight: 700; margin: 8px 0;">50 000 <span style="font-size: 1rem; font-weight: 400;">FCFA</span></p>
+          <p style="color: var(--accent); font-size: 0.85rem; margin: 4px 0;">Paiement unique • À vie</p>
+          <ul style="text-align: left; margin: 16px 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.9rem;">
+            <li>✅ Tout PRO Mensuel</li>
+            <li>✅ Pas de renouvellement</li>
+            <li>✅ Économisez 10 000 FCFA/an</li>
+          </ul>
+          <button id="btn-upgrade-lifetime" class="btn btn-primary" style="width: 100%; background: var(--accent);">💳 Payer 50 000 FCFA</button>
+        </div>
+      </div>
+    `;
+
+    return `
+      <div class="fade-in">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <div>
+            <h3 style="margin: 0;">Votre Abonnement</h3>
+            <p style="margin: 4px 0; color: var(--text-secondary);">Gérez votre plan et passez à PRO pour débloquer toutes les fonctionnalités.</p>
+          </div>
+          ${proBadge}
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div style="background: var(--bg-secondary); border-radius: 10px; padding: 16px;">
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">Plan actuel</p>
+            <p style="margin: 4px 0; font-size: 1.2rem; font-weight: 700;">${tier === 'FREE' ? 'Gratuit (FREE)' : tier}</p>
+          </div>
+          <div style="background: var(--bg-secondary); border-radius: 10px; padding: 16px;">
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">Statut</p>
+            <p style="margin: 4px 0; font-size: 1.2rem; font-weight: 700; color: ${status === 'active' ? 'var(--success)' : 'var(--warning)'};">${status === 'active' ? '✅ Actif' : '⚠️ ' + status}</p>
+          </div>
+          <div style="background: var(--bg-secondary); border-radius: 10px; padding: 16px;">
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">${isPro ? 'Expire le' : 'Ventes du jour'}</p>
+            <p style="margin: 4px 0; font-size: 1.2rem; font-weight: 700;">${isPro ? endDate : `${dailyUsed} / ${dailyMax}`}</p>
+            ${!isPro && dailyUsed >= 25 ? `<p style="margin: 4px 0; color: var(--warning); font-size: 0.8rem;">⚠️ Proche de la limite quotidienne</p>` : ''}
+          </div>
+        </div>
+
+        ${pricingCards}
+
+        ${isPro ? `
+          <div style="margin-top: 24px; padding: 16px; background: var(--bg-secondary); border-radius: 10px; text-align: center;">
+            <p style="margin: 0; color: var(--text-secondary);">✨ Vous êtes déjà <strong>PRO</strong> ! Toutes les fonctionnalités sont débloquées.</p>
+            ${tier === 'PRO_MONTHLY' ? `<p style="margin: 4px 0; font-size: 0.85rem; color: var(--text-secondary);">Votre abonnement expire le ${endDate}.</p>` : ''}
+          </div>
+        ` : ''}
+
+        <p style="margin-top: 24px; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">
+          🔒 Paiement sécurisé via <strong>FedaPay</strong> (Mobile Money, carte bancaire).<br>
+          En cas de problème, contactez le support.
+        </p>
+      </div>
+    `;
+  }
+
+  bindSubscriptionTabEvents() {
+    const monthlyBtn = document.getElementById('btn-upgrade-monthly');
+    const lifetimeBtn = document.getElementById('btn-upgrade-lifetime');
+
+    const handleUpgrade = async (amount, billingType, label) => {
+      if (!confirm(`Confirmer le paiement de ${amount.toLocaleString()} FCFA pour l'abonnement ${label} ?`)) return;
+
+      try {
+        const btn = billingType === 'MONTHLY' ? monthlyBtn : lifetimeBtn;
+        await withLoading(btn, async () => {
+          const result = await API.payments.createIntent(amount, `Abonnement PRO ${label} — RDGESTION`);
+          const checkoutUrl = result?.data?.intent?.checkout_url;
+          if (checkoutUrl) {
+            Toast.success('Redirection vers FedaPay...');
+            window.location.href = checkoutUrl;
+          } else {
+            throw new Error('URL de paiement non reçue.');
+          }
+        }, 'Connexion à FedaPay...');
+      } catch (e) {
+        Toast.error(e.message || 'Erreur lors de la création du paiement.');
+        console.error(e);
+      }
+    };
+
+    if (monthlyBtn) {
+      monthlyBtn.addEventListener('click', () => handleUpgrade(5000, 'MONTHLY', 'PRO Mensuel'));
+    }
+    if (lifetimeBtn) {
+      lifetimeBtn.addEventListener('click', () => handleUpgrade(50000, 'LIFETIME', 'PRO À Vie'));
+    }
   }
 }

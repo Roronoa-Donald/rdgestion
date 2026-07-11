@@ -401,6 +401,23 @@ export const API = {
     },
     async getReferrals() {
       return request('/admin/referrals');
+    },
+    async getSubscription() {
+      return request('/admin/subscriptions/current');
+    }
+  },
+  payments: {
+    /**
+     * Crée un intent de paiement FedaPay et retourne l'URL de checkout.
+     * @param {number} amount - Montant en FCFA
+     * @param {string} description - Description du paiement
+     * @returns {{ intent: { checkout_url: string, id: string, status: string } }}
+     */
+    async createIntent(amount, description = 'Abonnement PRO') {
+      return request('/payments/create-intent', {
+        method: 'POST',
+        body: JSON.stringify({ amount, description })
+      });
     }
   },
   exports: {

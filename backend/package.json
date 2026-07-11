@@ -26,6 +26,7 @@
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "fastify": "^4.28.1",
+    "fedapay": "^1.2.5",
     "jsonwebtoken": "^9.0.2",
     "pdfkit": "^0.15.2",
     "pg": "^8.12.0",

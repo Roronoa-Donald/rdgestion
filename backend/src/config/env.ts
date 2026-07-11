@@ -37,11 +37,13 @@ interface EnvConfig {
   // CRON (secret partagé pour les endpoints cron HTTP)
   CRON_SECRET: string;
 
-  // Paiements
+  // Paiements (FedaPay)
   PAYMENT_PROVIDER: 'manual' | 'fedapay';
-  FEDAPAY_API_KEY: string;
-  FEDAPAY_PUBLIC_KEY: string;
-  FEDAPAY_API_SECRET: string;
+  FEDAPAY_ENVIRONMENT: 'sandbox' | 'live';
+  FEDAPAY_API_KEY: string;        // Clé secrète (Secret Key)
+  FEDAPAY_PUBLIC_KEY: string;     // Clé publique (Public Key) pour checkout frontend
+  FEDAPAY_API_SECRET: string;     // Ancien nom, gardé pour rétrocompatibilité
+  FEDAPAY_WEBHOOK_SECRET: string; // Secret du endpoint webhook (wh_sandbox_...)
 }
 
 function getEnvString(key: string, defaultValue?: string): string {
@@ -100,7 +102,9 @@ export const env: EnvConfig = {
   SUPERADMIN_PASSWORD: getEnvString('SUPERADMIN_PASSWORD'),
   CRON_SECRET: getEnvString('CRON_SECRET', ''),
   PAYMENT_PROVIDER: getEnvString('PAYMENT_PROVIDER', 'manual') as 'manual' | 'fedapay',
+  FEDAPAY_ENVIRONMENT: getEnvString('FEDAPAY_ENVIRONMENT', 'sandbox') as 'sandbox' | 'live',
   FEDAPAY_API_KEY: getEnvString('FEDAPAY_API_KEY', ''),
   FEDAPAY_PUBLIC_KEY: getEnvString('FEDAPAY_PUBLIC_KEY', ''),
   FEDAPAY_API_SECRET: getEnvString('FEDAPAY_API_SECRET', ''),
+  FEDAPAY_WEBHOOK_SECRET: getEnvString('FEDAPAY_WEBHOOK_SECRET', ''),
 };

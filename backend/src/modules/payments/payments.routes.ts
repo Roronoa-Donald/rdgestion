@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { paymentService } from './payment.factory';
+import { PaymentResult } from './payment.service';
 import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
 import { checkTenantActive } from '../../middlewares/tenant';
@@ -48,39 +49,72 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
   });
 
   // ─── Webhook FedaPay (PUBLIC) ──────────────────────────────
-  fastify.post('/webhook/fedapay', {}, async (request: FastifyRequest, reply: FastifyReply) => {
-    const signature = (request.headers['x-signature'] as string) || '';
+  // FedaPay envoie les webhooks en POST avec :
+  // - Header X-FEDAPAY-SIGNATURE : signature HMAC + timestamp (anti-replay)
+  // - Body : l'objet Event FedaPay (name, data, id, created_at)
+  //
+  // Sécurité :
+  // - Webhook.constructEvent() vérifie signature + timestamp
+  // - Idempotence : on vérifie si l'event_id a déjà été traité
+  // - On ne traite que transaction.approved
+  fastify.post('/webhook/fedapay', {
+    config: {
+      // Désactiver le parsing automatique du body pour le webhook
+      // (Webhook.constructEvent a besoin du body brut)
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const signature = (request.headers['x-fedapay-signature'] as string) || '';
 
-    let result;
+    let result: PaymentResult;
     try {
       result = await paymentService.verifyWebhook(request.body, signature);
     } catch (err) {
       const statusCode = (err as any).statusCode || 500;
       const code = (err as any).code || 'SERVER_ERROR';
+      console.error('❌ Webhook FedaPay rejeté :', (err as Error).message);
       return reply.status(statusCode).send({ success: false, error: code, message: (err as Error).message });
     }
 
-    // Activation PRO sur le tenant identifié dans le metadata du webhook.
+    // Si le paiement n'est pas approuvé, on acquitte quand même (200)
+    // pour éviter que FedaPay réessaie indéfiniment
+    if (!result.success) {
+      console.log('📨 Webhook FedaPay reçu mais non approuvé :', (result.raw_payload as any)?.event);
+      return reply.status(200).send({ received: true, status: 'ignored' });
+    }
+
+    // Extraire tenant_id du custom_metadata
     const raw = (result.raw_payload || {}) as Record<string, unknown>;
-    const metadata = (raw.metadata || {}) as Record<string, unknown>;
+    const data = (raw.data || {}) as Record<string, unknown>;
+    const metadata = (data.custom_metadata || data.metadata || {}) as Record<string, unknown>;
     const tenantId = metadata.tenant_id as string | undefined;
     const billingType = (metadata.billing_type as 'MONTHLY' | 'LIFETIME') || 'MONTHLY';
 
     if (!tenantId) {
+      console.error('❌ Webhook FedaPay sans tenant_id dans custom_metadata');
       return reply.status(400).send({
         success: false,
         error: 'WEBHOOK_MISSING_TENANT',
-        message: 'Aucun tenant_id dans les metadata du webhook FedaPay.',
+        message: 'Aucun tenant_id dans les custom_metadata du webhook FedaPay.',
       });
     }
 
     try {
-      // On bill as the system superadmin (origin 'FEDAPAY').
-      await subscriptionsService.activatePro(tenantId, billingType, '00000000-0000-0000-0000-000000000000', request.ip, request.headers['user-agent'] || '', 'FEDAPAY');
+      // Activation PRO (origin = 'FEDAPAY')
+      await subscriptionsService.activatePro(
+        tenantId,
+        billingType,
+        '00000000-0000-0000-0000-000000000000', // system user
+        request.ip,
+        request.headers['user-agent'] || '',
+        'FEDAPAY'
+      );
+
+      console.log('✅ PRO activé pour', tenantId, 'via FedaPay');
       return reply.status(200).send({ success: true, data: { transaction_id: result.transaction_id } });
     } catch (err) {
       const statusCode = (err as any).statusCode || 500;
       const code = (err as any).code || 'SERVER_ERROR';
+      console.error('❌ Échec activation PRO webhook :', (err as Error).message);
       return reply.status(statusCode).send({ success: false, error: code, message: (err as Error).message });
     }
   });
