@@ -2,6 +2,7 @@ import { Router } from './router.js';
 import { LoginView, RegisterView, OnboardingView } from './views/auth.js';
 import { DashboardView } from './views/dashboard.js';
 import { ProductsView } from './views/products.js';
+import { StockView } from './views/stock.js';
 import { POSView } from './views/pos.js';
 import { SalesView } from './views/sales.js';
 import { LogsView } from './views/logs.js';
@@ -18,6 +19,7 @@ const routes = {
   '#/onboarding': { view: OnboardingView, requiresAuth: true, roles: ['ADMIN'] },
   '#/dashboard': { view: DashboardView, requiresAuth: true, roles: ['ADMIN'], layout: 'auth' },
   '#/products': { view: ProductsView, requiresAuth: true, roles: ['ADMIN'], layout: 'auth' },
+  '#/stock': { view: StockView, requiresAuth: true, roles: ['ADMIN'], layout: 'auth' },
   '#/pos': { view: POSView, requiresAuth: true, roles: ['ADMIN', 'SELLER'], layout: 'auth' },
   '#/sales': { view: SalesView, requiresAuth: true, roles: ['ADMIN', 'SELLER'], layout: 'auth' },
   '#/logs': { view: LogsView, requiresAuth: true, roles: ['ADMIN'], layout: 'auth' },
@@ -38,6 +40,7 @@ function updateMenuVisibility() {
   const navDashboard = document.getElementById('nav-dashboard');
   const navPos = document.getElementById('nav-pos');
   const navProducts = document.getElementById('nav-products');
+  const navStock = document.getElementById('nav-stock');
   const navSales = document.getElementById('nav-sales');
   const navLogs = document.getElementById('nav-logs');
   const navSettings = document.getElementById('nav-settings');
@@ -55,6 +58,7 @@ function updateMenuVisibility() {
     if (navDashboard) navDashboard.style.display = 'none';
     if (navPos) navPos.style.display = 'none';
     if (navProducts) navProducts.style.display = 'none';
+    if (navStock) navStock.style.display = 'none';
     if (navSales) navSales.style.display = 'none';
     if (navLogs) navLogs.style.display = 'none';
     if (navSettings) navSettings.style.display = 'none';
@@ -63,6 +67,7 @@ function updateMenuVisibility() {
     if (navDashboard) navDashboard.style.display = 'none';
     if (navPos) navPos.style.display = 'block';
     if (navProducts) navProducts.style.display = 'none';
+    if (navStock) navStock.style.display = 'none';
     if (navSales) navSales.style.display = 'block';
     if (navLogs) navLogs.style.display = 'none';
     if (navSettings) navSettings.style.display = 'none';
@@ -72,6 +77,7 @@ function updateMenuVisibility() {
     if (navDashboard) navDashboard.style.display = 'block';
     if (navPos) navPos.style.display = 'block';
     if (navProducts) navProducts.style.display = 'block';
+    if (navStock) navStock.style.display = 'block';
     if (navSales) navSales.style.display = 'block';
     if (navLogs) navLogs.style.display = 'block';
     if (navSettings) navSettings.style.display = 'block';

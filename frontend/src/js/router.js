@@ -97,7 +97,7 @@ export class Router {
     // Instancier et charger la nouvelle vue
     try {
       log(`[Router] Loading view: ${hash}`);
-      this.container.innerHTML = '<div class="text-center" style="padding: 100px 0;"><div class="skeleton-loader" style="width: 50px; height: 50px; border-radius: 50%; margin: 0 auto;"></div></div>';
+      this.container.innerHTML = '<div class="text-center" style="padding: 100px 0;" role="status" aria-label="Chargement en cours"><div class="skeleton-loader" aria-hidden="true" style="width: 50px; height: 50px; border-radius: 50%; margin: 0 auto;"></div></div>';
 
       const viewInstance = new route.view(queryParams);
       this.currentView = viewInstance;
@@ -109,9 +109,9 @@ export class Router {
         await viewInstance.afterRender();
       }
     } catch (error) {
-      console.error(`[Router-Audit] ❌ FATAL ERROR loading view ${hash}:`, error);
+      console.error(`[Router-Audit] FATAL ERROR loading view ${hash}:`, error);
       this.container.innerHTML = `
-        <div class="card text-center" style="max-width: 500px; margin: 50px auto; padding: 40px;">
+        <div class="card text-center" style="max-width: 500px; margin: 50px auto; padding: 40px;" role="alert">
           <h2 style="color: var(--error); margin-bottom: 12px;">Erreur de chargement</h2>
           <p style="color: var(--text-secondary); margin-bottom: 20px;">Impossible d'afficher cette section. Vérifiez votre connexion.</p>
           <button id="router-retry-btn" class="btn btn-primary">Réessayer</button>

@@ -11,10 +11,10 @@ function log(...args) { if (DEBUG) console.log(...args); }
 
 export const Toast = {
   types: {
-    SUCCESS: { class: 'toast-success', icon: '✓' },
-    ERROR: { class: 'toast-error', icon: '✕' },
-    INFO: { class: 'toast-info', icon: 'ℹ' },
-    WARNING: { class: 'toast-warning', icon: '⚠' },
+    SUCCESS: { class: 'toast-success', icon: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>' },
+    ERROR: { class: 'toast-error', icon: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>' },
+    INFO: { class: 'toast-info', icon: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>' },
+    WARNING: { class: 'toast-warning', icon: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>' },
   },
 
   init() {
@@ -37,7 +37,7 @@ export const Toast = {
     toast.id = id;
     toast.className = `toast-notification ${config.class}`;
     toast.innerHTML = `
-      <span class="toast-icon">${config.icon}</span>
+      <span class="toast-icon" aria-hidden="true">${config.icon}</span>
       <span class="toast-message">${message}</span>
     `;
 
@@ -84,7 +84,7 @@ export const LoadingIndicator = {
 
     const bar = document.createElement('div');
     bar.id = 'global-loading-bar';
-    bar.style.cssText = 'position: fixed; top: 0; left: 0; height: 3px; background: var(--accent-color, #1f2328); z-index: 10000; width: 100%; transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; pointer-events: none;';
+    bar.style.cssText = 'position: fixed; top: 0; left: 0; height: 3px; background: var(--accent-color); z-index: 10000; width: 100%; transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; pointer-events: none;';
     document.body.appendChild(bar);
   },
 
@@ -128,6 +128,7 @@ export async function withLoading(button, callback, message = 'Traitement...') {
 
   try {
     button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
     button.classList.add('is-loading');
     button.innerHTML = `<span class="spinner"></span> <span class="loading-text">${message}</span>`;
 
@@ -137,6 +138,7 @@ export async function withLoading(button, callback, message = 'Traitement...') {
     throw e;
   } finally {
     button.disabled = false;
+    button.removeAttribute('aria-busy');
     button.classList.remove('is-loading');
     button.innerText = originalText;
   }

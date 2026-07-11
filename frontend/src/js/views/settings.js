@@ -23,7 +23,7 @@ export class SettingsView {
           <button class="btn btn-secondary tab-link" data-tab="profile" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Boutique & ticket</button>
           <button class="btn btn-secondary tab-link" data-tab="vendors" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Comptes vendeurs</button>
           <button class="btn btn-secondary tab-link" data-tab="referrals" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">Parrainage & code</button>
-          <button class="btn btn-secondary tab-link" data-tab="subscription" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;">💎 Abonnement PRO</button>
+          <button class="btn btn-secondary tab-link" data-tab="subscription" style="border: none; border-radius: 0; background: none; border-bottom: 2px solid transparent; padding: 8px 16px; font-weight: 600;"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -2px; margin-right: 4px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Abonnement PRO</button>
         </div>
 
         <div id="settings-tab-content">
@@ -602,7 +602,7 @@ export class SettingsView {
     const isPro = tier === 'PRO_MONTHLY' || tier === 'PRO_LIFETIME';
 
     const proBadge = isPro
-      ? `<span style="background: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;">💎 PRO ${tier === 'PRO_LIFETIME' ? 'À VIE' : 'MENSUEL'}</span>`
+      ? `<span style="background: var(--accent); color: var(--accent-contrast); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> PRO ${tier === 'PRO_LIFETIME' ? 'À VIE' : 'MENSUEL'}</span>`
       : `<span style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;">FREE</span>`;
 
     const pricingCards = isPro ? '' : `
@@ -610,25 +610,25 @@ export class SettingsView {
         <div style="border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; text-align: center;">
           <h4 style="margin: 0 0 8px;">PRO Mensuel</h4>
           <p style="font-size: 2rem; font-weight: 700; margin: 8px 0;">5 000 <span style="font-size: 1rem; font-weight: 400;">FCFA/mois</span></p>
-          <ul style="text-align: left; margin: 16px 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.9rem;">
-            <li>✅ Ventes illimitées</li>
-            <li>✅ Tickets personnalisés (logo, slogan)</li>
-            <li>✅ Exports Excel & PDF</li>
-            <li>✅ Catégories personnalisées</li>
+          <ul style="text-align: left; margin: 16px 0; padding-left: 0; color: var(--text-secondary); font-size: 0.9rem; list-style: none;">
+            <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Ventes illimitées</li>
+            <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Tickets personnalisés (logo, slogan)</li>
+            <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Exports Excel & PDF</li>
+            <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Catégories personnalisées</li>
           </ul>
-          <button id="btn-upgrade-monthly" class="btn btn-primary" style="width: 100%;">💳 Payer 5 000 FCFA / mois</button>
+          <button id="btn-upgrade-monthly" class="btn btn-primary" style="width: 100%;"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -3px; margin-right: 6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Payer 5 000 FCFA / mois</button>
         </div>
         <div style="border: 2px solid var(--accent); border-radius: 12px; padding: 24px; text-align: center; position: relative;">
-          <span style="position: absolute; top: -12px; right: 20px; background: var(--accent); color: white; padding: 2px 10px; border-radius: 10px; font-size: 0.75rem;">ÉCONOMIE</span>
+          <span style="position: absolute; top: -12px; right: 20px; background: var(--accent); color: var(--accent-contrast); padding: 2px 10px; border-radius: 10px; font-size: 0.75rem;">ÉCONOMIE</span>
           <h4 style="margin: 0 0 8px;">PRO À Vie</h4>
           <p style="font-size: 2rem; font-weight: 700; margin: 8px 0;">50 000 <span style="font-size: 1rem; font-weight: 400;">FCFA</span></p>
           <p style="color: var(--accent); font-size: 0.85rem; margin: 4px 0;">Paiement unique • À vie</p>
-          <ul style="text-align: left; margin: 16px 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.9rem;">
-            <li>✅ Tout PRO Mensuel</li>
-            <li>✅ Pas de renouvellement</li>
-            <li>✅ Économisez 10 000 FCFA/an</li>
+          <ul style="text-align: left; margin: 16px 0; padding-left: 0; color: var(--text-secondary); font-size: 0.9rem; list-style: none;">
+            <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Tout PRO Mensuel</li>
+            <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Pas de renouvellement</li>
+            <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Économisez 10 000 FCFA/an</li>
           </ul>
-          <button id="btn-upgrade-lifetime" class="btn btn-primary" style="width: 100%; background: var(--accent);">💳 Payer 50 000 FCFA</button>
+          <button id="btn-upgrade-lifetime" class="btn btn-primary" style="width: 100%; background: var(--accent);"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -3px; margin-right: 6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Payer 50 000 FCFA</button>
         </div>
       </div>
     `;
@@ -650,12 +650,12 @@ export class SettingsView {
           </div>
           <div style="background: var(--bg-secondary); border-radius: 10px; padding: 16px;">
             <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">Statut</p>
-            <p style="margin: 4px 0; font-size: 1.2rem; font-weight: 700; color: ${status === 'active' ? 'var(--success)' : 'var(--warning)'};">${status === 'active' ? '✅ Actif' : '⚠️ ' + status}</p>
+            <p style="margin: 4px 0; font-size: 1.2rem; font-weight: 700; color: ${status === 'active' ? 'var(--success)' : 'var(--warning)'}; display: flex; align-items: center; gap: 6px;">${status === 'active' ? '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> Actif' : '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg> ' + status}</p>
           </div>
           <div style="background: var(--bg-secondary); border-radius: 10px; padding: 16px;">
             <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">${isPro ? 'Expire le' : 'Ventes du jour'}</p>
             <p style="margin: 4px 0; font-size: 1.2rem; font-weight: 700;">${isPro ? endDate : `${dailyUsed} / ${dailyMax}`}</p>
-            ${!isPro && dailyUsed >= 25 ? `<p style="margin: 4px 0; color: var(--warning); font-size: 0.8rem;">⚠️ Proche de la limite quotidienne</p>` : ''}
+            ${!isPro && dailyUsed >= 25 ? `<p style="margin: 4px 0; color: var(--warning); font-size: 0.8rem; display: flex; align-items: center; gap: 4px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg> Proche de la limite quotidienne</p>` : ''}
           </div>
         </div>
 
@@ -663,13 +663,13 @@ export class SettingsView {
 
         ${isPro ? `
           <div style="margin-top: 24px; padding: 16px; background: var(--bg-secondary); border-radius: 10px; text-align: center;">
-            <p style="margin: 0; color: var(--text-secondary);">✨ Vous êtes déjà <strong>PRO</strong> ! Toutes les fonctionnalités sont débloquées.</p>
+            <p style="margin: 0; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 6px;"><svg width="18" height="18" fill="none" stroke="var(--success)" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> Vous êtes déjà <strong>PRO</strong> ! Toutes les fonctionnalités sont débloquées.</p>
             ${tier === 'PRO_MONTHLY' ? `<p style="margin: 4px 0; font-size: 0.85rem; color: var(--text-secondary);">Votre abonnement expire le ${endDate}.</p>` : ''}
           </div>
         ` : ''}
 
-        <p style="margin-top: 24px; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">
-          🔒 Paiement sécurisé via <strong>FedaPay</strong> (Mobile Money, carte bancaire).<br>
+        <p style="margin-top: 24px; font-size: 0.8rem; color: var(--text-secondary); text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Paiement sécurisé via <strong>FedaPay</strong> (Mobile Money, carte bancaire).<br>
           En cas de problème, contactez le support.
         </p>
       </div>

@@ -33,7 +33,7 @@ export class LoginView {
       'Bon retour sur RDGESTION',
       'Connectez-vous pour reprendre la gestion de votre boutique.',
       `
-        <div id="login-error" class="badge badge-danger auth-error"></div>
+        <div id="login-error" class="badge badge-danger auth-error" role="alert"></div>
 
         <form id="login-form">
           <div class="form-group">
@@ -108,7 +108,7 @@ export class RegisterView {
       'Créer votre espace boutique',
       'Quelques informations suffisent pour ouvrir votre espace de gestion.',
       `
-        <div id="register-error" class="badge badge-danger auth-error"></div>
+        <div id="register-error" class="badge badge-danger auth-error" role="alert"></div>
 
         <form id="register-form">
           <div class="form-group">

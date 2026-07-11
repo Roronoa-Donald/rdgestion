@@ -17,7 +17,7 @@ export class DashboardView {
 
     const container = document.getElementById('dashboard-container');
     if (!container) {
-      console.error('[DASH-Audit] ❌ CRITICAL: dashboard-container NOT FOUND!');
+      console.error('[DASH-Audit] CRITICAL: dashboard-container NOT FOUND!');
       return;
     }
     const containerId = 'dashboard-container';
@@ -78,10 +78,10 @@ export class DashboardView {
         if (isStillActive()) this.renderStandardDashboard(stats);
       }
     } catch (error) {
-      console.error('[DASH-Audit] ❌ Error loading stats:', error);
+      console.error('[DASH-Audit] Error loading stats:', error);
       if (isStillActive()) {
         container.innerHTML = `
-          <div class="card text-center" style="max-width: 500px; margin: 40px auto; padding: 32px;">
+          <div class="card text-center" style="max-width: 500px; margin: 40px auto; padding: 32px;" role="alert">
             <h3 style="color: var(--error); margin-bottom: 8px;">Impossible de charger le tableau de bord</h3>
             <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">Vérifiez votre connexion internet ou le statut de la base de données.</p>
             <button id="btn-retry-dash" class="btn btn-primary btn-sm">Réessayer</button>
@@ -118,7 +118,7 @@ export class DashboardView {
             <span>Étapes d'activation complétées</span>
             <strong>${completedSteps} sur 3 (${progressPct}%)</strong>
           </div>
-          <div class="wizard-progress-track">
+          <div class="wizard-progress-track" role="progressbar" aria-valuenow="${progressPct}" aria-valuemin="0" aria-valuemax="100" aria-label="Progression de configuration">
             <div class="wizard-progress-bar" style="width: ${progressPct}%;"></div>
           </div>
         </section>
@@ -274,7 +274,7 @@ export class DashboardView {
               <title>Évolution du chiffre d'affaires</title>
               <desc>Graphique en courbe montrant l'évolution des ventes sur la période sélectionnée</desc>
               <rect class="chart-bg" x="0" y="0" width="600" height="200" fill="var(--bg-tertiary)" opacity="0.3"/>
-              g id="chart-grid" stroke="var(--border-color)" stroke-width="0.5" opacity="0.4">
+              <g id="chart-grid" stroke="var(--border-color)" stroke-width="0.5" opacity="0.4">
                 <line x1="40" y1="20" x2="40" y2="180"/>
                 <line x1="120" y1="20" x2="120" y2="180"/>
                 <line x1="200" y1="20" x2="200" y2="180"/>
@@ -291,7 +291,7 @@ export class DashboardView {
               </g>
               <g id="chart-area" fill="var(--success)" opacity="0.2"/>
               <polyline id="chart-line" fill="none" stroke="var(--success)" stroke-width="2.5" points=""/>
-              g id="chart-labels" font-size="9" fill="var(--text-secondary)" text-anchor="middle"/>
+              <g id="chart-labels" font-size="9" fill="var(--text-secondary)" text-anchor="middle"/>
               <text id="chart-empty" x="320" y="100" fill="var(--text-muted)" font-size="13" text-anchor="middle">Aucune donnée disponible</text>
             </svg>
           </div>

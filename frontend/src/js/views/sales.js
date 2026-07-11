@@ -60,7 +60,7 @@ export class SalesView {
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 600;">Historique des Ventes</h3>
-            <button id="btn-export-sales" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">📥 Export CSV</button>
+            <button id="btn-export-sales" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Export CSV</button>
           </div>
 
           <div class="table-responsive">

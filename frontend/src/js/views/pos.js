@@ -97,7 +97,7 @@ export class POSView {
               </div>
             </div>
 
-            <button id="btn-validate-sale" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 15px; font-weight: 700; background-color: var(--success); color: white;">
+            <button id="btn-validate-sale" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 15px; font-weight: 700; background-color: var(--success); color: var(--accent-contrast);">
               VALIDER LA VENTE (F12)
             </button>
           </div>
@@ -232,7 +232,7 @@ export class POSView {
     const grid = document.getElementById('pos-products-grid');
 
     if (!catTabs || !grid) {
-      console.error('[POS-Audit] ❌ CRITICAL: DOM elements pos-cat-tabs or pos-products-grid NOT FOUND!');
+      console.error('[POS-Audit] CRITICAL: DOM elements pos-cat-tabs or pos-products-grid NOT FOUND!');
       return;
     }
 
@@ -267,7 +267,7 @@ export class POSView {
       this.renderProducts();
       
     } catch (e) {
-      console.error('[POS-Audit] ❌ Error in loadPOSData:', e);
+      console.error('[POS-Audit] Error in loadPOSData:', e);
       catTabs.innerHTML = '';
       grid.innerHTML = `<div class="text-center" style="color: var(--error); padding: 40px 0;">Erreur de chargement des données.</div>`;
     }

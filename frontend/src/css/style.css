@@ -225,6 +225,7 @@ textarea:disabled {
 .menu-item:nth-child(5) { animation-delay: 0.15s; }
 .menu-item:nth-child(6) { animation-delay: 0.18s; }
 .menu-item:nth-child(7) { animation-delay: 0.21s; }
+.menu-item:nth-child(8) { animation-delay: 0.24s; }
 
 .menu-item::before {
   content: "";
@@ -257,7 +258,7 @@ textarea:disabled {
 
 .menu-item a svg {
   opacity: 0.72;
-  transition: transform 0.24s var(--ease-snap), opacity 0.18s var(--ease-out), stroke-width 0.18s var(--ease-out);
+  transition: transform 0.24s var(--ease-snap), opacity 0.18s var(--ease-out);
 }
 
 .menu-item a:hover {
