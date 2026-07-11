@@ -416,23 +416,36 @@ export const API = {
      * @param {object} range { from, to } dates ISO 'YYYY-MM-DD'
      */
     async sales(format = 'csv', range = {}) {
-      // Récupérer toutes les ventes via l'API JSON (pas de timeout car pas de génération binaire)
-      const params = new URLSearchParams();
-      params.set('limit', '1000'); // Récupérer jusqu'à 1000 ventes
-      if (range.from) params.set('from', range.from);
-      if (range.to) params.set('to', range.to);
+      // Récupérer toutes les ventes via l'API JSON par lots de 100 (limite API)
+      const limit = 100;
+      let allSales = [];
+      let page = 1;
+      let hasMore = true;
 
-      const data = await request(`/sales?${params.toString()}`);
-      const sales = data?.data?.sales || [];
+      while (hasMore) {
+        const params = new URLSearchParams();
+        params.set('limit', String(limit));
+        params.set('page', String(page));
+        if (range.from) params.set('from', range.from);
+        if (range.to) params.set('to', range.to);
 
-      if (sales.length === 0) {
+        const data = await request(`/sales?${params.toString()}`);
+        const sales = data?.data?.sales || [];
+        allSales = allSales.concat(sales);
+
+        const total = data?.data?.pagination?.total || 0;
+        hasMore = allSales.length < total && sales.length === limit;
+        page++;
+      }
+
+      if (allSales.length === 0) {
         throw new Error('Aucune vente à exporter sur cette période.');
       }
 
       // Générer le CSV
       const BOM = '\uFEFF'; // BOM pour qu'Excel reconnaisse l'UTF-8
       const headers = ['Numéro', 'Date', 'Vendeur', 'Articles', 'Quantité', 'Total (FCFA)', 'Paiement', 'Statut'];
-      const rows = sales.map(s => {
+      const rows = allSales.map(s => {
         const items = (s.items || []).map(it => `${it.product_name || it.product_id} x${it.quantity}`).join('; ');
         const date = new Date(s.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         return [
