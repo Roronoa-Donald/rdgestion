@@ -67,14 +67,18 @@ export class FedaPayPaymentService extends PaymentService {
     const currency = input.currency || 'XOF';
     const description = input.description || `Abonnement PRO — ${input.tenant_id.substring(0, 8)}`;
 
+    // Déterminer le callback_url : toujours utiliser l'URL Vercel en production
+    const isProduction = env.NODE_ENV === 'production' || !!process.env.VERCEL;
+    const baseUrl = isProduction
+      ? 'https://rdgestion.vercel.app'
+      : (env.CORS_ORIGIN || 'http://localhost:8080');
+
     // Créer la transaction via l'API FedaPay
     const transaction = await Transaction.create({
       description,
       amount: input.amount,
       currency: { iso: currency },
-      callback_url: env.CORS_ORIGIN
-        ? `${env.CORS_ORIGIN}/#/settings?payment=done`
-        : 'https://rdgestion.vercel.app/#/settings?payment=done',
+      callback_url: `${baseUrl}/#/settings?payment=done`,
       custom_metadata: {
         tenant_id: input.tenant_id,
         ...input.metadata,
