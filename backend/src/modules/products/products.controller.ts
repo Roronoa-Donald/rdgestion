@@ -3,6 +3,7 @@ import { productsService } from './products.service';
 import { env } from '../../config/env';
 import { ProductQueryFilters } from './products.service';
 import { productBodySchema } from './products.schema';
+import { uploadImage, deleteImage, extractPublicIdFromUrl } from '../../plugins/cloudinary/cloudinary';
 
 // Utilitaire de validation manuelle pour les requêtes multipart/form-data
 import Ajv from 'ajv';
@@ -40,6 +41,7 @@ export class ProductsController {
 
   /**
    * Crée un produit (POST /api/products)
+   * Upload de la photo vers Cloudinary (URL stockée en BDD).
    */
   async create(request: FastifyRequest, reply: FastifyReply) {
     const tenantId = request.currentUser!.tenantId;
@@ -110,21 +112,28 @@ export class ProductsController {
     // 3. Créer d'abord le produit en BDD sans l'URL de photo
     const product = await productsService.createProduct(tenantId, fields, userId, userIp, userAgent);
 
-    // 4. Si une photo a été uploadée, la convertir en Base64 et mettre à jour le produit
+    // 4. Si une photo a été uploadée, l'envoyer vers Cloudinary et mettre à jour le produit
     if (fileBuffer) {
-      const base64DataUri = `data:${fileMimetype};base64,${fileBuffer.toString('base64')}`;
-
-      // Mettre à jour le produit avec l'image encodée en Base64
-      const updatedProduct = await productsService.updateProduct(
-        tenantId,
-        product.id,
-        { image_url: base64DataUri },
-        userId,
-        userIp,
-        userAgent
-      );
-
-      return reply.status(201).send({ success: true, data: updatedProduct });
+      try {
+        const uploadResult = await uploadImage(fileBuffer, `rdgestion/${tenantId}/products`);
+        const updatedProduct = await productsService.updateProduct(
+          tenantId,
+          product.id,
+          { image_url: uploadResult.secure_url },
+          userId,
+          userIp,
+          userAgent
+        );
+        return reply.status(201).send({ success: true, data: updatedProduct });
+      } catch (uploadErr: any) {
+        // Le produit est créé mais l'image a échoué — on le signale
+        console.error('❌ Cloudinary upload failed for product', product.id, ':', uploadErr.message);
+        return reply.status(201).send({
+          success: true,
+          data: product,
+          warning: 'Produit créé mais l\'upload de la photo a échoué. Vous pourrez réessayer via la modification.'
+        });
+      }
     }
 
     return reply.status(201).send({ success: true, data: product });
@@ -132,6 +141,7 @@ export class ProductsController {
 
   /**
    * Modifie un produit (PUT /api/products/:id)
+   * Si une nouvelle photo est envoyée, l'ancienne est supprimée de Cloudinary.
    */
   async update(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const tenantId = request.currentUser!.tenantId;
@@ -184,9 +194,29 @@ export class ProductsController {
       fields = request.body as Record<string, any>;
     }
 
-    // Si une nouvelle photo est envoyée, la convertir en Base64
+    // Si une nouvelle photo est envoyée :
+    // 1. Récupérer l'ancienne URL pour supprimer l'image Cloudinary correspondante
+    // 2. Uploader la nouvelle vers Cloudinary
     if (fileBuffer) {
-      fields.image_url = `data:${fileMimetype};base64,${fileBuffer.toString('base64')}`;
+      try {
+        // Récupérer l'ancien produit pour avoir son image_url actuelle
+        const oldProduct = await productsService.getProductById(tenantId, id);
+        const oldPublicId = extractPublicIdFromUrl(oldProduct.image_url || '');
+        
+        // Uploader la nouvelle image
+        const uploadResult = await uploadImage(fileBuffer, `rdgestion/${tenantId}/products`);
+        fields.image_url = uploadResult.secure_url;
+
+        // Supprimer l'ancienne image de Cloudinary (non bloquant)
+        if (oldPublicId) {
+          deleteImage(oldPublicId).catch(err =>
+            console.warn('⚠️  Échec suppression ancienne image Cloudinary:', err.message)
+          );
+        }
+      } catch (uploadErr: any) {
+        console.error('❌ Cloudinary upload failed for product update', id, ':', uploadErr.message);
+        // On continue sans image — le produit sera mis à jour sans changer la photo
+      }
     }
 
     const updatedProduct = await productsService.updateProduct(

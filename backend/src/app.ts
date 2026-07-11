@@ -10,6 +10,7 @@ import { hashPassword } from './utils/password';
 import { runMigrations } from './database/migrate';
 import { registerCors } from './plugins/cors';
 import { registerSwagger } from './plugins/swagger';
+import { configureCloudinary } from './plugins/cloudinary/cloudinary';
 import { authRoutes } from './modules/auth/auth.routes';
 import { productsRoutes } from './modules/products/products.routes';
 import { categoriesRoutes } from './modules/categories/categories.routes';
@@ -135,7 +136,10 @@ fastify.register(fastifyMultipart, {
 // 3. Enregistrer la documentation Swagger
 fastify.register(registerSwagger);
 
-// 4. Enregistrer les routes applicatives
+// 4. Configurer Cloudinary (upload images)
+configureCloudinary(fastify);
+
+// 5. Enregistrer les routes applicatives
 fastify.register(authRoutes, { prefix: '/api/auth' });
 fastify.register(productsRoutes, { prefix: '/api/products' });
 fastify.register(categoriesRoutes, { prefix: '/api/categories' });

@@ -24,9 +24,11 @@ interface EnvConfig {
   RATE_LIMIT_MAX: number;
   RATE_LIMIT_AUTH_MAX: number;
 
-  // Uploads
+  // Uploads (Cloudinary)
   UPLOAD_MAX_SIZE: number;
-  UPLOAD_DIR: string;
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
 
   // Super Admin
   SUPERADMIN_PHONE: string;
@@ -91,7 +93,9 @@ export const env: EnvConfig = {
   RATE_LIMIT_MAX: getEnvNumber('RATE_LIMIT_MAX', 100),
   RATE_LIMIT_AUTH_MAX: getEnvNumber('RATE_LIMIT_AUTH_MAX', 10),
   UPLOAD_MAX_SIZE: getEnvNumber('UPLOAD_MAX_SIZE', 2097152),
-  UPLOAD_DIR: getEnvString('UPLOAD_DIR', './uploads'),
+  CLOUDINARY_CLOUD_NAME: getEnvString('CLOUDINARY_CLOUD_NAME', ''),
+  CLOUDINARY_API_KEY: getEnvString('CLOUDINARY_API_KEY', ''),
+  CLOUDINARY_API_SECRET: getEnvString('CLOUDINARY_API_SECRET', ''),
   SUPERADMIN_PHONE: getEnvString('SUPERADMIN_PHONE'),
   SUPERADMIN_PASSWORD: getEnvString('SUPERADMIN_PASSWORD'),
   CRON_SECRET: getEnvString('CRON_SECRET', ''),
