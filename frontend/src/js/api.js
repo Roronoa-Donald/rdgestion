@@ -411,16 +411,66 @@ export const API = {
       return downloadExport(`/exports/products?format=${encodeURIComponent(format)}`);
     },
     /**
-     * Exporte l'historique des ventes sur une période (optionnel).
-     * @param {string} format 'xlsx' | 'pdf'
+     * Exporte l'historique des ventes en CSV (généré côté client pour éviter les timeouts serverless).
+     * @param {string} format 'csv' (ignoré, toujours CSV)
      * @param {object} range { from, to } dates ISO 'YYYY-MM-DD'
      */
-    async sales(format = 'xlsx', range = {}) {
-      const qs = new URLSearchParams();
-      qs.set('format', format);
-      if (range.from) qs.set('from', range.from);
-      if (range.to) qs.set('to', range.to);
-      return downloadExport(`/exports/sales?${qs.toString()}`);
+    async sales(format = 'csv', range = {}) {
+      // Récupérer toutes les ventes via l'API JSON (pas de timeout car pas de génération binaire)
+      const params = new URLSearchParams();
+      params.set('limit', '1000'); // Récupérer jusqu'à 1000 ventes
+      if (range.from) params.set('from', range.from);
+      if (range.to) params.set('to', range.to);
+
+      const data = await request(`/sales?${params.toString()}`);
+      const sales = data?.data?.sales || [];
+
+      if (sales.length === 0) {
+        throw new Error('Aucune vente à exporter sur cette période.');
+      }
+
+      // Générer le CSV
+      const BOM = '\uFEFF'; // BOM pour qu'Excel reconnaisse l'UTF-8
+      const headers = ['Numéro', 'Date', 'Vendeur', 'Articles', 'Quantité', 'Total (FCFA)', 'Paiement', 'Statut'];
+      const rows = sales.map(s => {
+        const items = (s.items || []).map(it => `${it.product_name || it.product_id} x${it.quantity}`).join('; ');
+        const date = new Date(s.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return [
+          s.sale_number || '',
+          date,
+          s.seller_username || '',
+          items,
+          (s.items || []).reduce((sum, it) => sum + (it.quantity || 0), 0),
+          (s.total_amount || 0).toFixed(0),
+          s.payment_method || '',
+          s.status === 'cancelled' ? 'Annulée' : 'Active'
+        ];
+      });
+
+      // Échapper les champs CSV
+      const escapeCSV = (val) => {
+        const str = String(val ?? '');
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+      };
+
+      const csvContent = BOM + [headers, ...rows].map(row => row.map(escapeCSV).join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const filename = `ventes-${new Date().toISOString().split('T')[0]}.csv`;
+
+      // Déclencher le téléchargement
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      return { success: true, filename };
     },
     /**
      * Rapport fin de journée (pdf|xlsx) optionnellement daté.

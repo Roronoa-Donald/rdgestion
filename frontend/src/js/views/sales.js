@@ -60,7 +60,7 @@ export class SalesView {
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 600;">Historique des Ventes</h3>
-            <button id="btn-export-sales" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Exporter rapport (PRO)</button>
+            <button id="btn-export-sales" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">📥 Export CSV</button>
           </div>
 
           <div class="table-responsive">
@@ -126,11 +126,11 @@ export class SalesView {
     document.getElementById('btn-export-sales').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       try {
-        await withLoading(btn, () => API.exports.sales('xlsx', {
+        await withLoading(btn, () => API.exports.sales('csv', {
           from: this.filters.from || undefined,
           to: this.filters.to || undefined
-        }), "Export Excel en cours...");
-        Toast.success("Export Excel téléchargé.");
+        }), "Export CSV en cours...");
+        Toast.success("Export CSV téléchargé.");
       } catch (err) {
         Toast.error(err.message || "Échec de l'export (peut-être réservé au plan PRO).");
       }
