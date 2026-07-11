@@ -53,3 +53,5 @@ test-results/
 # Misc tool dirs
 .impeccable/
 .opencode/
+.vercel
+.env*
