@@ -84,31 +84,32 @@ async function bootstrapSuperAdmin() {
 
 // 1. Enregistrer le plugin d'initialisation asynchrone (Base de données, migrations, Super Admin)
 fastify.register(async () => {
+  // Sur Vercel (serverless), on saute toutes les initialisations DB lourdes :
+  // - checkDatabaseConnection : la DB sera vérifiée naturellement par les requêtes des routes
+  // - runMigrations : les fichiers SQL ne sont pas packagés et causeraient des erreurs
+  // - bootstrapSuperAdmin : déjà fait en local/dev, pas besoin à chaque cold start
+  // - startSubscriptionScheduler : les cron jobs ne fonctionnent pas en serverless
+  if (process.env.VERCEL) {
+    console.log('ℹ️ [Boot Plugin] Vercel environment: skipping DB init, migrations, SuperAdmin bootstrap, and scheduler.');
+    return;
+  }
+
   console.log('[Boot Plugin] Starting database connection check...');
   const dbConnected = await checkDatabaseConnection();
   if (!dbConnected) {
     console.error('❌ [Boot Plugin] Impossible de se connecter à PostgreSQL.');
-    if (!process.env.VERCEL) {
-      process.exit(1);
-    }
-    return;
+    process.exit(1);
   }
   console.log('✅ [Boot Plugin] Database connection verified.');
 
-  // Les migrations ne doivent pas être exécutées au runtime sur Vercel (fichiers SQL non packagés, performance/timeouts)
-  if (!process.env.VERCEL) {
-    console.log('[Boot Plugin] Environment is not Vercel. Running database migrations...');
-    await runMigrations();
-    console.log('✅ [Boot Plugin] Database migrations completed.');
-  } else {
-    console.log('ℹ️ [Boot Plugin] Vercel environment detected: skipping runtime database migrations.');
-  }
+  console.log('[Boot Plugin] Running database migrations...');
+  await runMigrations();
+  console.log('✅ [Boot Plugin] Database migrations completed.');
 
   console.log('[Boot Plugin] Running SuperAdmin bootstrap...');
   await bootstrapSuperAdmin();
   console.log('🎉 [Boot Plugin] SuperAdmin bootstrap finished.');
 
-  // Démarrer le scheduler d'expiration des abonnements (no-op sur Vercel)
   console.log('[Boot Plugin] Starting subscription scheduler...');
   startSubscriptionScheduler();
   console.log('✅ [Boot Plugin] Subscription scheduler started.');
