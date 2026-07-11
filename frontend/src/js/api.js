@@ -33,7 +33,8 @@ async function request(endpoint, options = {}) {
   }
 
   // Ne pas écraser le Content-Type si nous envoyons du FormData (upload photo)
-  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+  // Ne pas définir Content-Type: application/json si pas de body (PUT/DELETE sans body)
+  if (!(options.body instanceof FormData) && !headers['Content-Type'] && options.body) {
     headers['Content-Type'] = 'application/json';
   }
 
