@@ -26,11 +26,11 @@ export default async (req: any, res: any) => {
 
     const systemTenantId = '00000000-0000-0000-0000-000000000000';
 
-    // 2. Insérer le tenant plateforme
+    // 2. Upsert le tenant plateforme (gérer les conflits de phone et d'id)
     await query(
       `INSERT INTO tenants (id, name, owner_name, phone, referral_code, is_active)
        VALUES ($1, 'RDGESTION Plateforme', 'SuperAdmin', $2, 'RD-SYSTEM-000', TRUE)
-       ON CONFLICT (phone) DO UPDATE SET phone = $2`,
+       ON CONFLICT (id) DO UPDATE SET name = 'RDGESTION Plateforme', owner_name = 'SuperAdmin', phone = $2, is_active = TRUE`,
       [systemTenantId, superadminPhone]
     );
 
