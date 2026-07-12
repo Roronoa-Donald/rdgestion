@@ -21,14 +21,8 @@ export default async (req: any, res: any) => {
     const superadminPhone = process.env.SUPERADMIN_PHONE || '+22890000000';
     const superadminPassword = process.env.SUPERADMIN_PASSWORD || 'ChangeMe123!';
 
-    // 1. Vérifier si le superadmin existe déjà
-    const existing = await query("SELECT id FROM users WHERE role = 'SUPERADMIN'");
-    if (existing.rows.length > 0) {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ success: true, message: 'SuperAdmin already exists' }));
-      return;
-    }
+    // 1. Supprimer l'ancien SuperAdmin s'il existe (force recreate)
+    await query("DELETE FROM users WHERE role = 'SUPERADMIN'");
 
     const systemTenantId = '00000000-0000-0000-0000-000000000000';
 
@@ -36,7 +30,7 @@ export default async (req: any, res: any) => {
     await query(
       `INSERT INTO tenants (id, name, owner_name, phone, referral_code, is_active)
        VALUES ($1, 'RDGESTION Plateforme', 'SuperAdmin', $2, 'RD-SYSTEM-000', TRUE)
-       ON CONFLICT (phone) DO NOTHING`,
+       ON CONFLICT (phone) DO UPDATE SET phone = $2`,
       [systemTenantId, superadminPhone]
     );
 
@@ -46,8 +40,7 @@ export default async (req: any, res: any) => {
     // 4. Insérer l'utilisateur SuperAdmin
     await query(
       `INSERT INTO users (tenant_id, username, password_hash, role, display_name)
-       VALUES ($1, $2, $3, 'SUPERADMIN', 'Super Administrateur')
-       ON CONFLICT (username) DO NOTHING`,
+       VALUES ($1, $2, $3, 'SUPERADMIN', 'Super Administrateur')`,
       [systemTenantId, superadminPhone, passwordHash]
     );
 
