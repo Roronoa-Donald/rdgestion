@@ -9,6 +9,14 @@ export class POSView {
     this.categories = [];
     this.cart = [];
 
+    // Restore cart from localStorage (persistence across navigation)
+    try {
+      const savedCart = localStorage.getItem('pos_cart');
+      if (savedCart) {
+        this.cart = JSON.parse(savedCart);
+      }
+    } catch (_) { /* ignore parse errors */ }
+
     // Filtres catalogue
     this.searchQuery = '';
     this.selectedCategoryId = '';
@@ -124,6 +132,7 @@ export class POSView {
 
     document.getElementById('btn-clear-cart').addEventListener('click', () => {
       this.cart = [];
+      localStorage.removeItem('pos_cart');
       this.updateCartUI();
     });
 
@@ -290,7 +299,7 @@ export class POSView {
     }
 
     grid.innerHTML = filtered.map(p => {
-      const imageUrl = p.image_url ? p.image_url : 'https://placehold.co/150x150/161d30/f9fafb?text=Image';
+      const imageUrl = p.image_url ? p.image_url : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'150\' height=\'150\' viewBox=\'0 0 150 150\'><rect width=\'150\' height=\'150\' rx=\'8\' fill=\'#f1f1ef\'/><text x=\'75\' y=\'80\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'14\' fill=\'#8c9196\'>Image</text></svg>');
       const isOutOfStock = p.stock_quantity <= 0;
       const productName = escapeHtml(p.name);
 
@@ -336,7 +345,16 @@ export class POSView {
         quantity: 1
       });
     }
+    this.saveCart();
     this.updateCartUI();
+  }
+
+  saveCart() {
+    localStorage.setItem('pos_cart', JSON.stringify(this.cart));
+  }
+
+  saveCart() {
+    localStorage.setItem('pos_cart', JSON.stringify(this.cart));
   }
 
   updateCartUI() {
@@ -374,6 +392,7 @@ export class POSView {
         const item = this.cart.find(i => i.product_id === id);
         if (item.quantity > 1) {
           item.quantity--;
+          this.saveCart();
           this.updateCartUI();
         }
       });
@@ -385,6 +404,7 @@ export class POSView {
         const item = this.cart.find(i => i.product_id === id);
         if (item.quantity < item.stock_quantity) {
           item.quantity++;
+          this.saveCart();
           this.updateCartUI();
         } else {
           Toast.error('Stock maximum atteint.');
@@ -396,6 +416,7 @@ export class POSView {
       btn.addEventListener('click', () => {
         const id = btn.dataset.id;
         this.cart = this.cart.filter(i => i.product_id !== id);
+        this.saveCart();
         this.updateCartUI();
       });
     });
@@ -499,6 +520,7 @@ export class POSView {
         this.openSuccessModal(sale);
 
         this.cart = [];
+        localStorage.removeItem('pos_cart');
         this.updateCartUI();
 
         await this.loadPOSData();

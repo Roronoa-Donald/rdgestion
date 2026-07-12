@@ -1,20 +1,23 @@
-const CACHE_NAME = 'rdgestion-cache-v6';
+const CACHE_NAME = 'rdgestion-cache-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/src/assets/icon.svg',
   '/src/css/style.css',
+  '/src/js/init-theme.js',
   '/src/js/app.js',
   '/src/js/api.js',
   '/src/js/utils.js',
   '/src/js/utils/ui.js',
+  '/src/js/utils/aria.js',
   '/src/js/router.js',
   '/src/js/views/auth.js',
   '/src/js/views/dashboard.js',
   '/src/js/views/products.js',
   '/src/js/views/pos.js',
   '/src/js/views/sales.js',
+  '/src/js/views/stock.js',
   '/src/js/views/logs.js',
   '/src/js/views/settings.js',
   '/src/js/views/admin.js'

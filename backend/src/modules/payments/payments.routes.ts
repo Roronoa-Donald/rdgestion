@@ -5,6 +5,7 @@ import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
 import { checkTenantActive } from '../../middlewares/tenant';
 import { subscriptionsService } from '../admin/admin.service';
+import { query } from '../../config/database';
 
 /**
  * Routes paiements — prefix `/api/payments` (enregistré dans app.ts).
@@ -58,10 +59,8 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
   // - Idempotence : on vérifie si l'event_id a déjà été traité
   // - On ne traite que transaction.approved
   fastify.post('/webhook/fedapay', {
-    config: {
-      // Désactiver le parsing automatique du body pour le webhook
-      // (Webhook.constructEvent a besoin du body brut)
-    },
+    // Webhook FedaPay — le body est parsé en JSON par Fastify.
+    // verifyWebhook utilise le body parsé + la signature HMAC du header.
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const signature = (request.headers['x-fedapay-signature'] as string) || '';
 
@@ -88,6 +87,7 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
     const metadata = (data.custom_metadata || data.metadata || {}) as Record<string, unknown>;
     const tenantId = metadata.tenant_id as string | undefined;
     const billingType = (metadata.billing_type as 'MONTHLY' | 'LIFETIME') || 'MONTHLY';
+    const eventId = (raw.id as string) || '';
 
     if (!tenantId) {
       console.error('❌ Webhook FedaPay sans tenant_id dans custom_metadata');
@@ -96,6 +96,26 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
         error: 'WEBHOOK_MISSING_TENANT',
         message: 'Aucun tenant_id dans les custom_metadata du webhook FedaPay.',
       });
+    }
+
+    // Idempotency check: verify this event hasn't already been processed
+    if (eventId) {
+      const existing = await query(
+        'SELECT id FROM payments WHERE event_id = $1 LIMIT 1',
+        [eventId]
+      );
+      if (existing.rows.length > 0) {
+        console.log('🔄 Webhook FedaPay déjà traité, event_id:', eventId);
+        return reply.status(200).send({ success: true, data: { duplicate: true } });
+      }
+
+      // Record the payment event for idempotency
+      await query(
+        `INSERT INTO payments (tenant_id, provider, transaction_id, event_id, amount, currency, status, raw_payload)
+         VALUES ($1, 'FEDAPay', $2, $3, $4, $5, 'approved', $6)
+         ON CONFLICT (event_id) DO NOTHING`,
+        [tenantId, result.transaction_id, eventId, result.amount, result.currency, JSON.stringify(raw)]
+      );
     }
 
     try {

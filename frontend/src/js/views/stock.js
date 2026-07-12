@@ -135,7 +135,7 @@ export class StockView {
   async loadData() {
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        API.products.list({ limit: 1000 }),
+        API.products.list({ limit: 100 }),
         API.categories.list()
       ]);
 

@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeHtml, escapeAttr } from '../utils.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 import { setupTablist, setupDialog } from '../utils/aria.js';
 
 export class SettingsView {
@@ -359,7 +359,8 @@ export class SettingsView {
           const currentActive = btn.dataset.active === 'true';
           const nextActive = !currentActive;
           
-          if (confirm(`Voulez-vous vraiment ${nextActive ? 'activer' : 'désactiver'} ce compte vendeur ?`)) {
+          const confirmed = await confirmModal(`Voulez-vous vraiment ${nextActive ? 'activer' : 'désactiver'} ce compte vendeur ?`, { title: nextActive ? 'Activer le vendeur' : 'Désactiver le vendeur', confirmText: nextActive ? 'Activer' : 'Désactiver', danger: !nextActive });
+          if (confirmed) {
             try {
               await API.settings.toggleVendor(id, nextActive);
               await this.loadVendors();
@@ -681,7 +682,8 @@ export class SettingsView {
     const lifetimeBtn = document.getElementById('btn-upgrade-lifetime');
 
     const handleUpgrade = async (amount, billingType, label) => {
-      if (!confirm(`Confirmer le paiement de ${amount.toLocaleString()} FCFA pour l'abonnement ${label} ?`)) return;
+      const confirmed = await confirmModal(`Confirmer le paiement de ${amount.toLocaleString()} FCFA pour l'abonnement ${label} ?`, { title: 'Paiement PRO', confirmText: 'Payer maintenant' });
+      if (!confirmed) return;
 
       try {
         const btn = billingType === 'MONTHLY' ? monthlyBtn : lifetimeBtn;

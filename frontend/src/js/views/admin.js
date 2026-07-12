@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeHtml, escapeAttr } from '../utils.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
 export class AdminView {
@@ -175,7 +175,8 @@ export class AdminView {
           const currentActive = btn.dataset.active === 'true';
           const nextActive = !currentActive;
           
-          if (confirm(`Voulez-vous vraiment ${nextActive ? 'autoriser' : 'suspendre'} l'accès de cette boutique à la plateforme ?`)) {
+          const confirmed = await confirmModal(`Voulez-vous vraiment ${nextActive ? 'autoriser' : 'suspendre'} l'accès de cette boutique à la plateforme ?`, { title: nextActive ? 'Autoriser la boutique' : 'Suspendre la boutique', confirmText: nextActive ? 'Autoriser' : 'Suspendre', danger: !nextActive });
+          if (confirmed) {
             try {
               await API.admin.toggleTenant(id, nextActive);
               await this.loadTenants();

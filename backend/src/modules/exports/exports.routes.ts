@@ -7,13 +7,6 @@ import { checkTenantActive } from '../../middlewares/tenant';
 export async function exportsRoutes(fastify: FastifyInstance) {
   const preHandler = [authenticate, authorize(['ADMIN']), checkTenantActive];
 
-  fastify.addHook('preHandler', (request, reply, done) => {
-    (request as any).logAudit = (action: string, entityType: string, entityId: string | null, details: Record<string, unknown>) => {
-      (request as any)._audit = { action, entityType, entityId, details };
-      done();
-    };
-  });
-
   fastify.get('/products', {
     schema: {
       querystring: {

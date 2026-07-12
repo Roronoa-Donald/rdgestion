@@ -1,5 +1,5 @@
 import { API } from '../api.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 
 const SETUP_KEYS = [
   'rdg_setup_dismissed',
@@ -361,7 +361,7 @@ export class OnboardingView {
     });
 
     skipBtn.addEventListener('click', async () => {
-      const confirmed = confirm('Passer la configuration des catégories ? Une catégorie Autres sera créée et vous pourrez organiser le catalogue plus tard.');
+      const confirmed = await confirmModal('Passer la configuration des catégories ? Une catégorie Autres sera créée et vous pourrez organiser le catalogue plus tard.', { title: 'Passer l\'étape', confirmText: 'Passer' });
       if (!confirmed) return;
 
       await withLoading(skipBtn, async () => {

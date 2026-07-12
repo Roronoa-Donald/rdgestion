@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
 export class ProductsView {
@@ -184,7 +184,7 @@ export class ProductsView {
       }
 
       tableBody.innerHTML = this.products.map(p => {
-        const imageUrl = p.image_url ? p.image_url : 'https://placehold.co/40x40/161d30/f9fafb?text=P';
+        const imageUrl = p.image_url ? p.image_url : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 40 40\'><rect width=\'40\' height=\'40\' rx=\'6\' fill=\'#f1f1ef\'/><text x=\'20\' y=\'26\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'16\' font-weight=\'700\' fill=\'#8c9196\'>P</text></svg>');
         const productName = escapeHtml(p.name);
         const sku = escapeHtml(p.sku || '-');
         const categoryName = escapeHtml(p.category_name || 'Autres');
@@ -247,7 +247,8 @@ export class ProductsView {
 
       tableBody.querySelectorAll('.btn-delete').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-          if (confirm('Voulez-vous vraiment envoyer ce produit à la corbeille ?')) {
+          const confirmed = await confirmModal('Voulez-vous vraiment envoyer ce produit à la corbeille ?', { title: 'Supprimer le produit', confirmText: 'Supprimer', danger: true });
+          if (confirmed) {
             try {
               await withLoading(e.target, async () => {
                 await API.products.delete(e.target.dataset.id);

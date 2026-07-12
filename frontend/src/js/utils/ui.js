@@ -164,3 +164,144 @@ export const Skeletons = {
     return Array(count).fill(item).join('');
   }
 };
+
+/**
+ * Themed Confirm Modal: Replaces native confirm() with an accessible dialog.
+ * Returns a Promise<boolean> — true if confirmed, false if cancelled.
+ */
+export function confirmModal(message, options = {}) {
+  const title = options.title || 'Confirmation';
+  const confirmText = options.confirmText || 'Confirmer';
+  const cancelText = options.cancelText || 'Annuler';
+  const danger = options.danger || false;
+
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 10000; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease;';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-content';
+    modal.style.cssText = `background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); max-width: 420px; width: 90%; padding: 24px; box-shadow: var(--shadow-lg); animation: modalIn 0.24s var(--ease-out);`;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'confirm-modal-title');
+
+    modal.innerHTML = `
+      <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px;">
+        <div style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${danger ? 'var(--error-light)' : 'var(--accent-light)'};">
+          <svg width="20" height="20" fill="none" stroke="${danger ? 'var(--error)' : 'var(--accent-color)'}" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        </div>
+        <div>
+          <h3 id="confirm-modal-title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px;">${title}</h3>
+          <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">${message}</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="confirm-cancel" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">${cancelText}</button>
+        <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="confirm-ok" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">${confirmText}</button>
+      </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const cleanup = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKeydown);
+    };
+
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') {
+        cleanup();
+        resolve(false);
+      } else if (e.key === 'Enter') {
+        cleanup();
+        resolve(true);
+      }
+    };
+
+    document.addEventListener('keydown', onKeydown);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        cleanup();
+        resolve(false);
+      }
+    });
+
+    modal.querySelector('#confirm-ok').addEventListener('click', () => {
+      cleanup();
+      resolve(true);
+    });
+
+    modal.querySelector('#confirm-cancel').addEventListener('click', () => {
+      cleanup();
+      resolve(false);
+    });
+
+    setTimeout(() => modal.querySelector('#confirm-ok').focus(), 100);
+  });
+}
+
+/**
+ * Themed Alert Modal: Replaces native alert() with an accessible dialog.
+ * Returns a Promise<void> that resolves when dismissed.
+ */
+export function alertModal(message, options = {}) {
+  const title = options.title || 'Information';
+
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 10000; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease;';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-content';
+    modal.style.cssText = `background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); max-width: 420px; width: 90%; padding: 24px; box-shadow: var(--shadow-lg); animation: modalIn 0.24s var(--ease-out);`;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'alert-modal-title');
+
+    modal.innerHTML = `
+      <div style="margin-bottom: 20px;">
+        <h3 id="alert-modal-title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px;">${title}</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">${message}</p>
+      </div>
+      <div style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-primary" id="alert-ok" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">OK</button>
+      </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const cleanup = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKeydown);
+    };
+
+    const onKeydown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Enter') {
+        cleanup();
+        resolve();
+      }
+    };
+
+    document.addEventListener('keydown', onKeydown);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        cleanup();
+        resolve();
+      }
+    });
+
+    modal.querySelector('#alert-ok').addEventListener('click', () => {
+      cleanup();
+      resolve();
+    });
+
+    setTimeout(() => modal.querySelector('#alert-ok').focus(), 100);
+  });
+}

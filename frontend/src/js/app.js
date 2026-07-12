@@ -10,7 +10,7 @@ import { SettingsView } from './views/settings.js';
 import { AdminView } from './views/admin.js';
 import { API } from './api.js';
 import { escapeHtml } from './utils.js';
-import { Toast, LoadingIndicator } from './utils/ui.js';
+import { Toast, LoadingIndicator, confirmModal, alertModal } from './utils/ui.js';
 
 // Table de routage de la Single Page Application (SPA)
 const routes = {
@@ -181,7 +181,7 @@ async function openNotificationsModal() {
         closeFn();
         await refreshNotifications();
       } catch (err) {
-        alert(err.message);
+        alertModal(err.message);
       }
     });
 
@@ -207,8 +207,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Configurer le bouton de déconnexion
   const logoutBtn = document.getElementById('logout-btn');
-  logoutBtn.addEventListener('click', () => {
-    if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+  logoutBtn.addEventListener('click', async () => {
+    const confirmed = await confirmModal('Voulez-vous vraiment vous déconnecter ?', { title: 'Déconnexion', confirmText: 'Se déconnecter', danger: true });
+    if (confirmed) {
       localStorage.clear();
       window.location.hash = '#/login';
       const sidebar = document.getElementById('sidebar-navigation');
@@ -220,7 +221,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Gérer l'expiration de session globale
   window.addEventListener('auth-expired', () => {
-    alert('Votre session a expiré. Veuillez vous reconnecter.');
+    alertModal('Votre session a expiré. Veuillez vous reconnecter.', { title: 'Session expirée' });
     window.location.hash = '#/login';
     const sidebar = document.getElementById('sidebar-navigation');
     const header = document.getElementById('main-header');

@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
 export class SalesView {
@@ -359,7 +359,8 @@ export class SalesView {
     const cancelBtn = document.getElementById('btn-modal-cancel-sale');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', async () => {
-        if (confirm('Êtes-vous sûr de vouloir ANNULER cette vente ? Le stock de tous ses produits sera recrédité en base.')) {
+        const confirmed = await confirmModal('Êtes-vous sûr de vouloir ANNULER cette vente ? Le stock de tous ses produits sera recrédité en base.', { title: 'Annuler la vente', confirmText: 'Annuler la vente', danger: true });
+        if (confirmed) {
           try {
             await withLoading(cancelBtn, async () => {
               await API.sales.cancel(sale.id);

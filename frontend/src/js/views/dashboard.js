@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeHtml } from '../utils.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 
 const SETUP_DISMISSED_KEY = 'rdg_setup_dismissed';
 const SETUP_REFERRAL_SEEN_KEY = 'rdg_setup_referral_seen';
@@ -194,9 +194,10 @@ export class DashboardView {
       </div>
     `;
 
-    document.getElementById('skip-wizard-btn').addEventListener('click', () => {
-      const confirmed = confirm(
-        "Passer l'accompagnement de démarrage ?\n\nVotre tableau de bord s'affichera vide, mais vous pourrez toujours créer des produits et consulter le parrainage plus tard."
+    document.getElementById('skip-wizard-btn').addEventListener('click', async () => {
+      const confirmed = await confirmModal(
+        "Passer l'accompagnement de démarrage ? Votre tableau de bord s'affichera vide, mais vous pourrez toujours créer des produits et consulter le parrainage plus tard.",
+        { title: 'Passer l\'introduction', confirmText: 'Passer' }
       );
       if (confirmed) {
         localStorage.setItem(SETUP_DISMISSED_KEY, 'true');
