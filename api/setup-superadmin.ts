@@ -6,10 +6,11 @@ import { query } from '../backend/src/config/database';
 import { hashPassword } from '../backend/src/utils/password';
 
 export default async (req: any, res: any) => {
-  // Sécurité : nécessite un secret passé en query param
+  // Sécurité : nécessite le SUPERADMIN_PASSWORD en query param
   const url = new URL(req.url || '', 'http://localhost');
   const secret = url.searchParams.get('secret');
-  if (secret !== process.env.JWT_SECRET?.slice(0, 16)) {
+  const expectedSecret = process.env.SUPERADMIN_PASSWORD || 'ChangeMe123!';
+  if (secret !== expectedSecret) {
     res.statusCode = 403;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ success: false, error: 'FORBIDDEN' }));
