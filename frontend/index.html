@@ -13,8 +13,9 @@
   <!-- Content Security Policy for production -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' http://localhost:* https://*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com;">
 
-  <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="src/css/style.css">
+  <!-- CSS Stylesheet — preload to prevent FOUC -->
+  <link rel="preload" href="src/css/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="src/css/style.css"></noscript>
   
   <!-- Google Fonts: Rubik (display) + Nunito Sans (body) — UI UX Pro Max recommendation -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

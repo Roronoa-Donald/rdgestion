@@ -564,9 +564,26 @@ export class POSView {
 
     document.getElementById('btn-print-ticket').addEventListener('click', async () => {
       const btn = document.getElementById('btn-print-ticket');
-      await withLoading(btn, async () => {
-        await API.sales.openTicket(sale.id);
-      }, "Génération du ticket...");
+      // Ouvrir le popup SYNCHRONOUSMENT au clic (avant tout await)
+      // pour conserver le contexte user-gesture.
+      const ticketWindow = window.open('', '_blank', 'width=350,height=600');
+      if (!ticketWindow) {
+        Toast.error('Le navigateur a bloqué la fenêtre d’impression. Autorisez les popups pour RDGESTION.');
+        return;
+      }
+      ticketWindow.document.write('<!doctype html><html><head><title>Ticket RDGESTION</title><style>body{font-family:sans-serif;text-align:center;padding:40px;color:#888;}p{animation:pulse 1s infinite}@keyframes pulse{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}</style></head><body><p>Préparation du ticket…</p></body></html>');
+
+      try {
+        await withLoading(btn, async () => {
+          const html = await API.sales.getTicketHtml(sale.id);
+          ticketWindow.document.open();
+          ticketWindow.document.write(html);
+          ticketWindow.document.close();
+        }, "Génération du ticket...");
+      } catch (err) {
+        ticketWindow.close();
+        Toast.error(err.message);
+      }
     });
   }
 }

@@ -304,12 +304,14 @@ export const API = {
       });
     },
     async openTicket(id) {
+      // Ouvrir la fenêtre SYNCHRONOUSMENT avant tout await pour conserver
+      // le contexte "user gesture" (sinon le navigateur bloque le popup).
       const ticketWindow = window.open('', '_blank', 'width=350,height=600');
       if (!ticketWindow) {
         throw new Error('Le navigateur a bloqué la fenêtre d’impression. Autorisez les popups pour RDGESTION.');
       }
 
-      ticketWindow.document.write('<!doctype html><title>Ticket RDGESTION</title><p style="font-family: sans-serif;">Préparation du ticket...</p>');
+      ticketWindow.document.write('<!doctype html><html><head><title>Ticket RDGESTION</title><style>body{font-family:sans-serif;text-align:center;padding:40px;color:#888;}p{animation:pulse 1s infinite}@keyframes pulse{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}</style></head><body><p>Préparation du ticket…</p></body></html>');
 
       try {
         const html = await requestText(`/sales/${id}/ticket`);
@@ -320,6 +322,9 @@ export const API = {
         ticketWindow.close();
         throw error;
       }
+    },
+    async getTicketHtml(id) {
+      return requestText(`/sales/${id}/ticket`);
     }
   },
 
