@@ -6,7 +6,7 @@
 
 import { API } from '../api.js';
 import { escapeHtml, escapeAttr } from '../utils.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, alertModal } from '../utils/ui.js';
 
 export class StockView {
   constructor() {
@@ -411,7 +411,7 @@ export class StockView {
       const reason = document.getElementById('quick-stock-reason').value.trim();
 
       if (!qty || qty < 0 || (type !== 'adjust' && qty < 1)) {
-        Toast.error('Veuillez entrer une quantité valide.');
+        alertModal('Veuillez entrer une quantité valide.', { title: 'Validation' });
         return;
       }
 
@@ -426,7 +426,7 @@ export class StockView {
           await API.products.stockMovement(product.id, payload);
         });
 
-        Toast.success('Stock mis à jour avec succès.');
+        alertModal('Stock mis à jour avec succès.', { title: 'Stock' });
 
         // Update local data
         if (type === 'in') {
@@ -445,7 +445,7 @@ export class StockView {
         this.applyFilters();
       } catch (error) {
         console.error('[Stock] Error updating stock:', error);
-        Toast.error(error.message || 'Erreur lors de la mise à jour du stock.');
+        alertModal(error.message || 'Erreur lors de la mise à jour du stock.', { title: 'Erreur' });
       }
     });
 

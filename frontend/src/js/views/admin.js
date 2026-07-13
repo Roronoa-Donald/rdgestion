@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeHtml, escapeAttr } from '../utils.js';
-import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
 export class AdminView {
@@ -181,7 +181,7 @@ export class AdminView {
               await API.admin.toggleTenant(id, nextActive);
               await this.loadTenants();
             } catch (err) {
-              Toast.error(err.message);
+              alertModal(err.message, { title: 'Erreur' });
             }
           }
         });
@@ -241,10 +241,10 @@ export class AdminView {
       try {
         await API.admin.activateSubscription(tenantId, billingType);
         closeFn();
-        Toast.success(`PRO ${billingType} activé pour ${escapeHtml(tenantName)}`);
+        alertModal(`PRO ${billingType} activé pour ${escapeHtml(tenantName)}`, { title: 'Activation PRO' });
         await this.loadTenants();
       } catch (err) {
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     });
   }

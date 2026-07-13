@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
-import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
 export class SalesView {
@@ -130,9 +130,9 @@ export class SalesView {
           from: this.filters.from || undefined,
           to: this.filters.to || undefined
         }), "Export CSV en cours...");
-        Toast.success("Export CSV téléchargé.");
+        alertModal("Export CSV téléchargé avec succès.", { title: 'Export' });
       } catch (err) {
-        Toast.error(err.message || "Échec de l'export (peut-être réservé au plan PRO).");
+        alertModal(err.message || "Échec de l'export (peut-être réservé au plan PRO).", { title: 'Erreur' });
       }
     });
 
@@ -236,14 +236,14 @@ export class SalesView {
     try {
       raw = await API.sales.get(saleId);
     } catch (err) {
-      Toast.error(err.message);
+      alertModal(err.message, { title: 'Erreur' });
       return;
     }
 
     const sale = raw?.data || raw;
 
     if (!sale || !sale.id) {
-      Toast.error('Données de vente invalides ou introuvables.');
+      alertModal('Données de vente invalides ou introuvables.', { title: 'Erreur' });
       return;
     }
 
@@ -353,7 +353,7 @@ export class SalesView {
     document.getElementById('panel-close-sale').addEventListener('click', closeFn);
 
     document.getElementById('btn-modal-reprint-ticket').addEventListener('click', () => {
-      API.sales.openTicket(sale.id).catch((err) => Toast.error(err.message));
+      API.sales.openTicket(sale.id).catch((err) => alertModal(err.message, { title: 'Erreur' }));
     });
 
     const cancelBtn = document.getElementById('btn-modal-cancel-sale');
@@ -367,9 +367,9 @@ export class SalesView {
               closeFn();
               await this.loadSales();
             }, "Annulation de la vente...");
-            Toast.success('Vente annulée et stocks recrédités.');
+            alertModal('Vente annulée et stocks recrédités avec succès.', { title: 'Vente annulée' });
           } catch (err) {
-            Toast.error(err.message);
+            alertModal(err.message, { title: 'Erreur' });
           }
         }
       });

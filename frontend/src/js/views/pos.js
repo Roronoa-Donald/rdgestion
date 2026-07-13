@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
-import { Toast, withLoading, Skeletons } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
 export class POSView {
@@ -539,9 +539,9 @@ export class POSView {
       }, "Enregistrement de la vente...");
     } catch (err) {
       if (err.code === 'DAILY_LIMIT_REACHED') {
-        Toast.error('La limite de 30 ventes par jour est atteinte pour\ l\'offre FREE.');
+        alertModal('La limite de 30 ventes par jour est atteinte pour l\'offre FREE.', { title: 'Limite atteinte' });
       } else {
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     }
   }

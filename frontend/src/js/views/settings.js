@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeHtml, escapeAttr } from '../utils.js';
-import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupTablist, setupDialog } from '../utils/aria.js';
 
 export class SettingsView {
@@ -237,9 +237,9 @@ export class SettingsView {
       };
       try {
         this.profile = (await API.settings.updateProfile(payload)).data;
-        Toast.success('Profil de la boutique mis à jour avec succès.');
+        alertModal('Profil de la boutique mis à jour avec succès.', { title: 'Profil' });
       } catch (err) {
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     });
 
@@ -252,9 +252,9 @@ export class SettingsView {
       };
       try {
         this.settings = (await API.settings.update(payload)).data;
-        Toast.success('Limites de configuration enregistrées.');
+        alertModal('Limites de configuration enregistrées avec succès.', { title: 'Configuration' });
       } catch (err) {
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     });
 
@@ -269,9 +269,9 @@ export class SettingsView {
       };
       try {
         this.settings = (await API.settings.update(payload)).data;
-        Toast.success('Configuration du ticket enregistrée.');
+        alertModal('Configuration du ticket enregistrée avec succès.', { title: 'Ticket' });
       } catch (err) {
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     });
   }
@@ -365,7 +365,7 @@ export class SettingsView {
               await API.settings.toggleVendor(id, nextActive);
               await this.loadVendors();
             } catch (err) {
-              Toast.error(err.message);
+              alertModal(err.message, { title: 'Erreur' });
             }
           }
         });
@@ -454,7 +454,7 @@ export class SettingsView {
           const res = await API.auth.createVendor({ password, password_confirm });
           const v = res.data.vendor;
           closeFn();
-          Toast.success(`Compte vendeur créé ! Identifiant : ${v.username}`);
+          alertModal(`Compte vendeur créé ! Identifiant : ${v.username}`, { title: 'Vendeur créé' });
           await this.loadVendors();
         } catch (err) {
           errEl.textContent = err.message || 'Erreur lors de la création.';
@@ -691,14 +691,14 @@ export class SettingsView {
           const result = await API.payments.createIntent(amount, `Abonnement PRO ${label} — RDGESTION`);
           const checkoutUrl = result?.data?.intent?.checkout_url;
           if (checkoutUrl) {
-            Toast.success('Redirection vers FedaPay...');
+            alertModal('Redirection vers FedaPay...', { title: 'Paiement' });
             window.location.href = checkoutUrl;
           } else {
             throw new Error('URL de paiement non reçue.');
           }
         }, 'Connexion à FedaPay...');
       } catch (e) {
-        Toast.error(e.message || 'Erreur lors de la création du paiement.');
+        alertModal(e.message || 'Erreur lors de la création du paiement.', { title: 'Erreur' });
         console.error(e);
       }
     };

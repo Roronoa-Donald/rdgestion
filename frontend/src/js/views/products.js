@@ -1,6 +1,6 @@
 import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
-import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
+import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
 export class ProductsView {
@@ -254,9 +254,9 @@ export class ProductsView {
                 await API.products.delete(e.target.dataset.id);
                 await this.loadProducts();
               }, "Suppression...");
-              Toast.success('Produit supprimé.');
+              alertModal('Produit supprimé avec succès.', { title: 'Suppression' });
             } catch (err) {
-              Toast.error(err.message);
+              alertModal(err.message, { title: 'Erreur' });
             }
           }
         });
@@ -269,9 +269,9 @@ export class ProductsView {
               await API.products.restore(e.target.dataset.id);
               await this.loadProducts();
             }, "Restauration...");
-            Toast.success('Produit restauré.');
+            alertModal('Produit restauré avec succès.', { title: 'Restauration' });
           } catch (err) {
-            Toast.error(err.message);
+            alertModal(err.message, { title: 'Erreur' });
           }
         });
       });
@@ -460,10 +460,10 @@ export class ProductsView {
           if (!isEdit && this.queryParams.fromSetup === '1') {
             window.location.hash = '#/dashboard';
           }
-          Toast.success(isEdit ? 'Produit mis à jour.' : 'Produit créé.');
+          alertModal(isEdit ? 'Produit mis à jour avec succès.' : 'Produit créé avec succès.', { title: isEdit ? 'Modification' : 'Création' });
         }, "Enregistrement du produit...");
       } catch (err) {
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     });
   }
@@ -516,13 +516,13 @@ export class ProductsView {
           await API.categories.create(name);
           closeFn();
           await this.loadCategories();
-          Toast.success('Catégorie créée.');
+          alertModal('Catégorie créée avec succès.', { title: 'Catégorie' });
         }, "Création de la catégorie...");
       } catch (err) {
         if (err.code === 'PRO_REQUIRED') {
-          Toast.error('Fonctionnalité Premium. Veuillez vous abonner à l\'offre PRO pour créer vos propres catégories.');
+          alertModal('Fonctionnalité Premium. Veuillez vous abonner à l\'offre PRO pour créer vos propres catégories.', { title: 'Fonctionnalité Premium' });
         } else {
-          Toast.error(err.message);
+          alertModal(err.message, { title: 'Erreur' });
         }
       }
     });
@@ -666,10 +666,10 @@ export class ProductsView {
           await API.products.stockMovement(productId, { movement_type, quantity, reason });
         }, "Traitement...");
         closeFn();
-        Toast.success('Mouvement de stock enregistré avec succès.');
+        alertModal('Mouvement de stock enregistré avec succès.', { title: 'Stock' });
         await this.loadProducts();
       } catch (err) {
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     });
   }
