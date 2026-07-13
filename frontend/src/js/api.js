@@ -423,6 +423,12 @@ export const API = {
         method: 'POST',
         body: JSON.stringify({ amount, description, billing_type })
       });
+    },
+    async verifyTransaction(transaction_id) {
+      return request('/payments/verify', {
+        method: 'POST',
+        body: JSON.stringify({ transaction_id })
+      });
     }
   },
   exports: {

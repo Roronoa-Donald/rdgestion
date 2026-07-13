@@ -165,4 +165,91 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
       return reply.status(statusCode).send({ success: false, error: code, message: (err as Error).message });
     }
   });
+
+  // ─── Vérification de transaction (ADMIN) ───────────────────
+  // Route appelée par le frontend après le retour de FedaPay.
+  // Elle interroge directement l'API FedaPay pour vérifier le statut
+  // de la transaction et active le PRO si elle est approuvée.
+  // C'est un mécanisme de secours au cas où le webhook échoue.
+  fastify.post('/verify', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['transaction_id'],
+        properties: {
+          transaction_id: { type: 'string' },
+        },
+        additionalProperties: false,
+      },
+    },
+    preHandler: [authenticate, authorize(['ADMIN'])],
+  }, async (request: FastifyRequest<any>, reply: FastifyReply) => {
+    try {
+      const { transaction_id } = request.body as { transaction_id: string };
+      const tenantId = request.currentUser!.tenantId;
+
+      // Vérifier le statut de la transaction via l'API FedaPay
+      const result = await paymentService.verifyTransaction(transaction_id);
+
+      if (!result.success) {
+        return reply.status(200).send({
+          success: false,
+          data: { status: 'pending', transaction_id },
+        });
+      }
+
+      // La transaction est approuvée — extraire les metadata
+      const raw = (result.raw_payload || {}) as Record<string, unknown>;
+      const metadata = (raw.custom_metadata || {}) as Record<string, unknown>;
+      const billingType = (metadata.billing_type as 'MONTHLY' | 'LIFETIME') || 'MONTHLY';
+
+      // Idempotency check
+      const existing = await query(
+        'SELECT id FROM payments WHERE transaction_id = $1 AND status = \'approved\' LIMIT 1',
+        [transaction_id]
+      );
+
+      if (existing.rows.length > 0) {
+        // Déjà traité — vérifier si le PRO est actif
+        const subRes = await query(
+          'SELECT tier, status FROM subscriptions WHERE tenant_id = $1 AND status = \'ACTIVE\' ORDER BY created_at DESC LIMIT 1',
+          [tenantId]
+        );
+        const isPro = subRes.rows.length > 0 && subRes.rows[0].tier === 'PRO';
+        return reply.status(200).send({
+          success: true,
+          data: { status: 'approved', already_activated: true, is_pro: isPro },
+        });
+      }
+
+      // Enregistrer le paiement
+      await query(
+        `INSERT INTO payments (tenant_id, provider, transaction_id, amount, currency, status, raw_payload)
+         VALUES ($1, 'FEDAPay', $2, $3, $4, 'approved', $5)
+         ON CONFLICT DO NOTHING`,
+        [tenantId, transaction_id, result.amount, result.currency, JSON.stringify(raw)]
+      );
+
+      // Activer le PRO
+      await subscriptionsService.activatePro(
+        tenantId,
+        billingType,
+        '00000000-0000-0000-0000-000000000000',
+        request.ip,
+        request.headers['user-agent'] || '',
+        'FEDAPAY'
+      );
+
+      console.log('✅ PRO activé pour', tenantId, 'via vérification transaction');
+      return reply.status(200).send({
+        success: true,
+        data: { status: 'approved', is_pro: true },
+      });
+    } catch (err) {
+      const statusCode = (err as any).statusCode || 500;
+      const code = (err as any).code || 'SERVER_ERROR';
+      console.error('❌ Vérification transaction échouée :', (err as Error).message);
+      return reply.status(statusCode).send({ success: false, error: code, message: (err as Error).message });
+    }
+  });
 }

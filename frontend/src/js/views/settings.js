@@ -41,15 +41,49 @@ export class SettingsView {
 
     // Détecter le retour de paiement FedaPay (?payment=done)
     if (this.queryParams.payment === 'done') {
-      alertModal(
-        'Votre paiement est en cours de traitement. Votre abonnement PRO sera activé dans quelques instants. Si votre compte n\'est pas PRO sous 5 minutes, contactez le support.',
-        { title: 'Paiement en cours' }
-      );
-      // Nettoyer l'URL pour éviter d'afficher le modal à chaque rechargement
+      // Nettoyer l'URL
       const cleanHash = window.location.hash.split('?')[0];
       window.history.replaceState(null, '', cleanHash);
-      // Forcer l'onglet abonnement pour voir le statut
+      // Forcer l'onglet abonnement
       this.activeTab = 'subscription';
+
+      // Vérifier la transaction si on a un ID stocké
+      const transactionId = sessionStorage.getItem('fedapay_transaction_id');
+      if (transactionId) {
+        sessionStorage.removeItem('fedapay_transaction_id');
+        // Polling : vérifier la transaction plusieurs fois (le webhook peut prendre du temps)
+        let activated = false;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            const res = await API.payments.verifyTransaction(transactionId);
+            if (res?.success && res?.data?.is_pro) {
+              activated = true;
+              alertModal('Votre abonnement PRO a été activé avec succès ! 🎉', { title: 'PRO activé' });
+              break;
+            }
+            if (res?.data?.status === 'approved' && res?.data?.already_activated) {
+              activated = true;
+              alertModal('Votre abonnement PRO est déjà actif ! 🎉', { title: 'PRO actif' });
+              break;
+            }
+          } catch (e) {
+            // Ignorer les erreurs et réessayer
+          }
+          // Attendre 2 secondes entre chaque tentative
+          await new Promise(r => setTimeout(r, 2000));
+        }
+        if (!activated) {
+          alertModal(
+            'Votre paiement a été reçu mais l\'activation PRO est en cours. Si votre compte n\'est pas PRO sous 5 minutes, contactez le support.',
+            { title: 'Paiement en cours' }
+          );
+        }
+      } else {
+        alertModal(
+          'Votre paiement est en cours de traitement. Votre abonnement PRO sera activé dans quelques instants.',
+          { title: 'Paiement en cours' }
+        );
+      }
     }
 
     // Attacher onglets avec sémantique ARIA tablist/tab/tabpanel + navigation flèches
@@ -616,7 +650,7 @@ export class SettingsView {
     const isPro = tier === 'PRO_MONTHLY' || tier === 'PRO_LIFETIME';
 
     const proBadge = isPro
-      ? `<span style="background: var(--accent); color: var(--accent-contrast); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> PRO ${tier === 'PRO_LIFETIME' ? 'À VIE' : 'MENSUEL'}</span>`
+      ? `<span style="background: var(--accent-color); color: var(--accent-contrast); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> PRO ${tier === 'PRO_LIFETIME' ? 'À VIE' : 'MENSUEL'}</span>`
       : `<span style="background: var(--bg-tertiary); color: var(--text-secondary); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;">FREE</span>`;
 
     const pricingCards = isPro ? '' : `
@@ -632,17 +666,17 @@ export class SettingsView {
           </ul>
           <button id="btn-upgrade-monthly" class="btn btn-primary" style="width: 100%;"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -3px; margin-right: 6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Payer 5 000 FCFA / mois</button>
         </div>
-        <div style="border: 2px solid var(--accent); border-radius: 12px; padding: 24px; text-align: center; position: relative;">
-          <span style="position: absolute; top: -12px; right: 20px; background: var(--accent); color: var(--accent-contrast); padding: 2px 10px; border-radius: 10px; font-size: 0.75rem;">ÉCONOMIE</span>
+        <div style="border: 2px solid var(--accent-color); border-radius: 12px; padding: 24px; text-align: center; position: relative;">
+          <span style="position: absolute; top: -12px; right: 20px; background: var(--accent-color); color: var(--accent-contrast); padding: 2px 10px; border-radius: 10px; font-size: 0.75rem;">ÉCONOMIE</span>
           <h4 style="margin: 0 0 8px;">PRO À Vie</h4>
           <p style="font-size: 2rem; font-weight: 700; margin: 8px 0;">50 000 <span style="font-size: 1rem; font-weight: 400;">FCFA</span></p>
-          <p style="color: var(--accent); font-size: 0.85rem; margin: 4px 0;">Paiement unique • À vie</p>
+          <p style="color: var(--accent-color); font-size: 0.85rem; margin: 4px 0;">Paiement unique • À vie</p>
           <ul style="text-align: left; margin: 16px 0; padding-left: 0; color: var(--text-secondary); font-size: 0.9rem; list-style: none;">
             <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Tout PRO Mensuel</li>
             <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Pas de renouvellement</li>
             <li style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;"><svg width="16" height="16" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink: 0;"><path d="M5 13l4 4L19 7"/></svg> Économisez 10 000 FCFA/an</li>
           </ul>
-          <button id="btn-upgrade-lifetime" class="btn btn-primary" style="width: 100%; background: var(--accent);"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -3px; margin-right: 6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Payer 50 000 FCFA</button>
+          <button id="btn-upgrade-lifetime" class="btn btn-primary" style="width: 100%; background: var(--accent-color); border-color: var(--accent-color);"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: -3px; margin-right: 6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Payer 50 000 FCFA</button>
         </div>
       </div>
     `;
@@ -703,7 +737,12 @@ export class SettingsView {
         await withLoading(btn, async () => {
           const result = await API.payments.createIntent(amount, `Abonnement PRO ${label} — RDGESTION`, billingType);
           const checkoutUrl = result?.data?.intent?.checkout_url;
+          const transactionId = result?.data?.intent?.id;
           if (checkoutUrl) {
+            // Stocker l'ID de transaction pour vérification au retour
+            if (transactionId) {
+              sessionStorage.setItem('fedapay_transaction_id', transactionId);
+            }
             alertModal('Redirection vers FedaPay...', { title: 'Paiement' });
             window.location.href = checkoutUrl;
           } else {

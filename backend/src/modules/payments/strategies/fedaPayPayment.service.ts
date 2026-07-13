@@ -144,6 +144,39 @@ export class FedaPayPaymentService extends PaymentService {
   }
 
   /**
+   * Vérifie le statut d'une transaction FedaPay en interrogeant directement l'API.
+   * Utilisé comme mécanisme de secours si le webhook n'est pas reçu ou échoue.
+   *
+   * @param transactionId - ID de la transaction FedaPay
+   * @returns PaymentResult avec success=true si la transaction est approuvée
+   */
+  async verifyTransaction(transactionId: string): Promise<PaymentResult> {
+    this.ensureConfigured();
+
+    const transaction = await Transaction.retrieve(Number(transactionId));
+    const status = String(transaction.status || '');
+    const metadata = (transaction.custom_metadata || {}) as Record<string, unknown>;
+
+    // FedaPay statuses: approved, declined, pending, refunded, etc.
+    const success = status === 'approved';
+
+    return {
+      success,
+      transaction_id: String(transaction.id || transactionId),
+      amount: Number(transaction.amount) || 0,
+      currency: String(transaction.currency?.iso || 'XOF'),
+      reference: String(transaction.reference || transaction.id || ''),
+      raw_payload: {
+        id: transaction.id,
+        status,
+        amount: transaction.amount,
+        reference: transaction.reference,
+        custom_metadata: metadata,
+      },
+    };
+  }
+
+  /**
    * Remboursement FedaPay (non implémenté pour le MVP).
    */
   async refund(transaction_id: string, _amount?: number): Promise<PaymentResult> {

@@ -27,6 +27,13 @@ export class ManualPaymentService extends PaymentService {
     throw err;
   }
 
+  async verifyTransaction(_transactionId: string): Promise<PaymentResult> {
+    const err = new Error('Aucune vérification de transaction en mode manuel.');
+    (err as any).statusCode = 501;
+    (err as any).code = 'METHOD_NOT_IMPLEMENTED';
+    throw err;
+  }
+
   async refund(_transaction_id: string, _amount?: number): Promise<PaymentResult> {
     const err = new Error('Aucun remboursement possible en mode manuel.');
     (err as any).statusCode = 501;

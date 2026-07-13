@@ -25,5 +25,6 @@ export abstract class PaymentService {
     metadata?: Record<string, unknown>;
   }): Promise<PaymentIntent>;
   abstract verifyWebhook(payload: unknown, signature: string): Promise<PaymentResult>;
+  abstract verifyTransaction(transactionId: string): Promise<PaymentResult>;
   abstract refund(transaction_id: string, amount?: number): Promise<PaymentResult>;
 }
