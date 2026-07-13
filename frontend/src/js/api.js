@@ -418,10 +418,10 @@ export const API = {
      * @param {string} description - Description du paiement
      * @returns {{ intent: { checkout_url: string, id: string, status: string } }}
      */
-    async createIntent(amount, description = 'Abonnement PRO') {
+    async createIntent(amount, description = 'Abonnement PRO', billing_type = 'MONTHLY') {
       return request('/payments/create-intent', {
         method: 'POST',
-        body: JSON.stringify({ amount, description })
+        body: JSON.stringify({ amount, description, billing_type })
       });
     }
   },

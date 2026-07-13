@@ -18,6 +18,25 @@ import { query } from '../../config/database';
  *   tenant identifié dans le metadata du webhook.
  */
 export async function paymentsRoutes(fastify: FastifyInstance) {
+  // ─── Capturer le raw body pour la vérification webhook FedaPay ──
+  // Webhook.constructEvent() a besoin du body brut (string) pour vérifier
+  // la signature HMAC. Fastify parse le body en JSON par défaut, ce qui
+  // modifie le format (key ordering, whitespace) et invalide la signature.
+  // On stocke donc le raw body dans request.rawBody pour le webhook.
+  fastify.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (req: FastifyRequest, body: string, done: (err: Error | null, body?: unknown) => void) => {
+      try {
+        (req as any).rawBody = body;
+        const json = JSON.parse(body);
+        done(null, json);
+      } catch (err: any) {
+        done(err);
+      }
+    }
+  );
+
   // ─── Création d'un intent de paiement (ADMIN) ───────────────
   fastify.post('/create-intent', {
     schema: {
@@ -27,6 +46,7 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
         properties: {
           amount: { type: 'number', minimum: 1 },
           description: { type: 'string' },
+          billing_type: { type: 'string', enum: ['MONTHLY', 'LIFETIME'] },
         },
         additionalProperties: false,
       },
@@ -34,12 +54,16 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
     preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive],
   }, async (request: FastifyRequest<any>, reply: FastifyReply) => {
     try {
-      const body = request.body as { amount: number; description?: string };
+      const body = request.body as { amount: number; description?: string; billing_type?: 'MONTHLY' | 'LIFETIME' };
       const intent = await paymentService.createPaymentIntent({
         tenant_id: request.currentUser!.tenantId,
         amount: body.amount,
         description: body.description,
-        metadata: { tenant_id: request.currentUser!.tenantId, user_id: request.currentUser!.userId },
+        metadata: {
+          tenant_id: request.currentUser!.tenantId,
+          user_id: request.currentUser!.userId,
+          billing_type: body.billing_type || 'MONTHLY',
+        },
       });
       return reply.send({ success: true, data: { intent } });
     } catch (err) {
@@ -59,14 +83,17 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
   // - Idempotence : on vérifie si l'event_id a déjà été traité
   // - On ne traite que transaction.approved
   fastify.post('/webhook/fedapay', {
-    // Webhook FedaPay — le body est parsé en JSON par Fastify.
-    // verifyWebhook utilise le body parsé + la signature HMAC du header.
+    // Webhook FedaPay — on utilise le raw body capturé par le content type
+    // parser ci-dessus pour vérifier la signature HMAC.
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const signature = (request.headers['x-fedapay-signature'] as string) || '';
 
+    // Utiliser le raw body (string brute) pour la vérification de signature
+    const rawBody = (request as any).rawBody || request.body;
+
     let result: PaymentResult;
     try {
-      result = await paymentService.verifyWebhook(request.body, signature);
+      result = await paymentService.verifyWebhook(rawBody, signature);
     } catch (err) {
       const statusCode = (err as any).statusCode || 500;
       const code = (err as any).code || 'SERVER_ERROR';
@@ -77,7 +104,7 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
     // Si le paiement n'est pas approuvé, on acquitte quand même (200)
     // pour éviter que FedaPay réessaie indéfiniment
     if (!result.success) {
-      console.log('📨 Webhook FedaPay reçu mais non approuvé :', (result.raw_payload as any)?.event);
+      console.log('📨 Webhook FedaPay reçu mais non approuvé :', (result.raw_payload as any)?.name);
       return reply.status(200).send({ received: true, status: 'ignored' });
     }
 

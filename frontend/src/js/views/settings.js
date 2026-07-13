@@ -38,7 +38,20 @@ export class SettingsView {
 
   async afterRender() {
     document.getElementById('current-view-title').textContent = 'Paramètres';
-     
+
+    // Détecter le retour de paiement FedaPay (?payment=done)
+    if (this.queryParams.payment === 'done') {
+      alertModal(
+        'Votre paiement est en cours de traitement. Votre abonnement PRO sera activé dans quelques instants. Si votre compte n\'est pas PRO sous 5 minutes, contactez le support.',
+        { title: 'Paiement en cours' }
+      );
+      // Nettoyer l'URL pour éviter d'afficher le modal à chaque rechargement
+      const cleanHash = window.location.hash.split('?')[0];
+      window.history.replaceState(null, '', cleanHash);
+      // Forcer l'onglet abonnement pour voir le statut
+      this.activeTab = 'subscription';
+    }
+
     // Attacher onglets avec sémantique ARIA tablist/tab/tabpanel + navigation flèches
     const tablistEl = document.getElementById('settings-tablist');
     setupTablist(tablistEl, () => this.activeTab, (id) => {
@@ -688,7 +701,7 @@ export class SettingsView {
       try {
         const btn = billingType === 'MONTHLY' ? monthlyBtn : lifetimeBtn;
         await withLoading(btn, async () => {
-          const result = await API.payments.createIntent(amount, `Abonnement PRO ${label} — RDGESTION`);
+          const result = await API.payments.createIntent(amount, `Abonnement PRO ${label} — RDGESTION`, billingType);
           const checkoutUrl = result?.data?.intent?.checkout_url;
           if (checkoutUrl) {
             alertModal('Redirection vers FedaPay...', { title: 'Paiement' });

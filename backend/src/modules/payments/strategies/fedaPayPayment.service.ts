@@ -139,7 +139,7 @@ export class FedaPayPaymentService extends PaymentService {
       amount: Number(data.amount) || 0,
       currency: String(data.currency?.iso || 'XOF'),
       reference: String(data.reference || data.id || ''),
-      raw_payload: { event: eventName, data },
+      raw_payload: event,
     };
   }
 
