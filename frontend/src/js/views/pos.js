@@ -36,7 +36,7 @@ export class POSView {
         <!-- Colonne GAUCHE : Catalogue produits -->
         <div class="pos-catalog">
           <div class="pos-search-bar">
-            <input type="text" id="pos-search-input" class="form-input" placeholder="Rechercher un produit ou SKU... (F10)" aria-label="Rechercher un produit ou SKU" style="flex: 1; font-size: 15px;">
+            <input type="text" id="pos-search-input" class="form-input" placeholder="Rechercher un produit ou SKU..." aria-label="Rechercher un produit ou SKU" style="flex: 1; font-size: 15px;">
           </div>
 
           <div class="pos-categories" id="pos-cat-tabs">
@@ -88,8 +88,8 @@ export class POSView {
 
             <!-- Mode de paiement -->
             <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <button id="pay-cash-btn" class="btn btn-primary" style="flex: 1; padding: 8px; font-size: 12px; background-color: var(--accent-color);">Especes (F8)</button>
-              <button id="pay-momo-btn" class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 12px;">Mobile Money (F7)</button>
+              <button id="pay-cash-btn" class="btn btn-primary" style="flex: 1; padding: 8px; font-size: 12px; background-color: var(--accent-color);">Especes <span class="kbd-hint">(F8)</span></button>
+              <button id="pay-momo-btn" class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 12px;">Mobile Money <span class="kbd-hint">(F7)</span></button>
             </div>
 
             <!-- Détails de paiement complémentaires -->
@@ -106,7 +106,7 @@ export class POSView {
             </div>
 
             <button id="btn-validate-sale" class="btn btn-primary" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 15px; font-weight: 700; background-color: var(--success); color: var(--accent-contrast);">
-              VALIDER LA VENTE (F12)
+              VALIDER LA VENTE <span class="kbd-hint">(F12)</span>
             </button>
           </div>
         </div>

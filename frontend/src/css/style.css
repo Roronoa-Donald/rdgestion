@@ -2168,6 +2168,11 @@ textarea:disabled {
     display: block;
   }
 
+  /* Masquer les raccourcis clavier sur mobile */
+  .kbd-hint {
+    display: none;
+  }
+
   .sidebar {
     transform: translateX(-100%);
     z-index: 101;
