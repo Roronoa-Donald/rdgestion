@@ -136,6 +136,39 @@
     </div>
   </div>
 
+  <!-- Overlay pour la sidebar mobile -->
+  <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+  <!-- Barre de navigation inférieure (mobile) -->
+  <nav id="bottom-navigation" class="bottom-nav" aria-label="Navigation principale mobile">
+    <div class="bottom-nav-inner">
+      <a href="#/dashboard" class="bottom-nav-item" id="bottom-nav-dashboard" data-route="dashboard">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        <span>Vue d'ensemble</span>
+      </a>
+      <a href="#/pos" class="bottom-nav-item" id="bottom-nav-pos" data-route="pos">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+        <span>Caisse POS</span>
+      </a>
+      <a href="#/products" class="bottom-nav-item" id="bottom-nav-products" data-route="products">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+        <span>Produits</span>
+      </a>
+      <a href="#/stock" class="bottom-nav-item" id="bottom-nav-stock" data-route="stock">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0v10l-8 4m0-14v14m0-10L4 7m0 0v10l8 4M20 7l-8 4M4 7l8 4"/><path d="M9 14l2 2 4-4" stroke="currentColor" stroke-width="2.5"/></svg>
+        <span>Stock</span>
+      </a>
+      <a href="#/sales" class="bottom-nav-item" id="bottom-nav-sales" data-route="sales">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+        <span>Ventes</span>
+      </a>
+      <a href="#/admin" class="bottom-nav-item" id="bottom-nav-admin" data-route="admin" style="display: none;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        <span>Admin</span>
+      </a>
+    </div>
+  </nav>
+
   <!-- Conteneurs Globaux pour Modales et Panneaux -->
   <div id="sales-modal-container"></div>
 

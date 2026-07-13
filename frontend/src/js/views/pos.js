@@ -130,11 +130,23 @@ export class POSView {
       this.renderProducts();
     });
 
-    document.getElementById('btn-clear-cart').addEventListener('click', () => {
+    document.getElementById('btn-clear-cart').addEventListener('click', (e) => {
+      e.stopPropagation();
       this.cart = [];
       localStorage.removeItem('pos_cart');
       this.updateCartUI();
     });
+
+    // Mobile: toggle cart collapse on header click
+    const cartHeader = document.querySelector('.cart-header');
+    const posCart = document.querySelector('.pos-cart');
+    if (cartHeader && posCart) {
+      cartHeader.addEventListener('click', () => {
+        if (window.innerWidth <= 767) {
+          posCart.classList.toggle('collapsed');
+        }
+      });
+    }
 
     // Remise change
     const discTypeSelect = document.getElementById('pos-discount-type');

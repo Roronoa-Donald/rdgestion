@@ -176,13 +176,13 @@ export class LogsView {
 
         return `
           <tr>
-            <td>${datetime}</td>
-            <td>${actionBadge}</td>
-            <td><strong>${escapeHtml(log.username || 'Système')}</strong></td>
-            <td><small>${roleLabel}</small></td>
-            <td><code>${escapeHtml(log.ip_address || '-')}</code></td>
-            <td title="${escapeAttr(uaRaw)}">${escapeHtml(uaText)}</td>
-            <td style="text-align: right;">
+            <td data-label="Date & Heure">${datetime}</td>
+            <td data-label="Action">${actionBadge}</td>
+            <td data-label="Utilisateur"><strong>${escapeHtml(log.username || 'Système')}</strong></td>
+            <td data-label="Rôle"><small>${roleLabel}</small></td>
+            <td data-label="Adresse IP"><code>${escapeHtml(log.ip_address || '-')}</code></td>
+            <td data-label="Navigateur / OS" title="${escapeAttr(uaRaw)}">${escapeHtml(uaText)}</td>
+            <td data-label="Détails" style="text-align: right;">
               <button class="btn btn-secondary btn-log-detail" data-index="${index}" style="padding: 2px 6px; font-size: 11px;">Inspecter</button>
             </td>
           </tr>

@@ -142,15 +142,15 @@ export class AdminView {
 
         return `
           <tr style="${!t.is_active ? 'opacity: 0.6;' : ''}">
-            <td><strong>${tenantName}</strong></td>
-            <td>${ownerName}</td>
-            <td><code>${phone}</code></td>
-            <td style="text-align: center;"><span class="badge" style="background: var(--bg-tertiary);">${t.user_count}</span></td>
-            <td>${tierBadge}</td>
-            <td>${subStatus}</td>
-            <td><small>${expiry}</small></td>
-            <td style="text-align: center;">${accessBadge}</td>
-            <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+            <td data-label="Nom de la boutique"><strong>${tenantName}</strong></td>
+            <td data-label="Gérant">${ownerName}</td>
+            <td data-label="Téléphone"><code>${phone}</code></td>
+            <td data-label="Collaborateurs" style="text-align: center;"><span class="badge" style="background: var(--bg-tertiary);">${t.user_count}</span></td>
+            <td data-label="Offre actuelle">${tierBadge}</td>
+            <td data-label="État Offre">${subStatus}</td>
+            <td data-label="Date d'expiration"><small>${expiry}</small></td>
+            <td data-label="Accès plateforme" style="text-align: center;">${accessBadge}</td>
+            <td data-label="Actions" style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
               <button class="btn btn-secondary btn-activate-pro" data-id="${escapeAttr(t.id)}" data-name="${escapeAttr(t.name)}" style="padding: 4px 8px; font-size: 11px;">
                 Activer PRO
               </button>

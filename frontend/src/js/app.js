@@ -83,6 +83,96 @@ function updateMenuVisibility() {
     if (navSettings) navSettings.style.display = 'block';
     if (navAdmin) navAdmin.style.display = 'none';
   }
+
+  // Appliquer la même logique aux items de la barre de navigation inférieure (mobile)
+  updateBottomNavVisibility(user.role);
+}
+
+/**
+ * Configure la visibilité des items de la barre de navigation inférieure selon le rôle.
+ */
+function updateBottomNavVisibility(role) {
+  const bnDashboard = document.getElementById('bottom-nav-dashboard');
+  const bnPos = document.getElementById('bottom-nav-pos');
+  const bnProducts = document.getElementById('bottom-nav-products');
+  const bnStock = document.getElementById('bottom-nav-stock');
+  const bnSales = document.getElementById('bottom-nav-sales');
+  const bnAdmin = document.getElementById('bottom-nav-admin');
+
+  const show = (el) => { if (el) el.style.display = ''; };
+  const hide = (el) => { if (el) el.style.display = 'none'; };
+
+  if (role === 'SUPERADMIN') {
+    hide(bnDashboard); hide(bnPos); hide(bnProducts); hide(bnStock); hide(bnSales);
+    show(bnAdmin);
+  } else if (role === 'SELLER') {
+    hide(bnDashboard); show(bnPos); hide(bnProducts); hide(bnStock); show(bnSales);
+    hide(bnAdmin);
+  } else {
+    // ADMIN
+    show(bnDashboard); show(bnPos); show(bnProducts); show(bnStock); show(bnSales);
+    hide(bnAdmin);
+  }
+}
+
+/**
+ * Met en surbrillance l'item actif de la barre de navigation inférieure.
+ */
+function updateBottomNavActive() {
+  const hash = window.location.hash.split('?')[0];
+  document.querySelectorAll('.bottom-nav-item').forEach(item => {
+    const href = item.getAttribute('href');
+    if (href === hash) {
+      item.classList.add('active');
+      item.setAttribute('aria-current', 'page');
+    } else {
+      item.classList.remove('active');
+      item.removeAttribute('aria-current');
+    }
+  });
+}
+
+/**
+ * Ferme la sidebar mobile (retire la classe .open et masque l'overlay).
+ */
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar-navigation');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
+}
+
+/**
+ * Ouvre la sidebar mobile (ajoute la classe .open et affiche l'overlay).
+ */
+function openMobileSidebar() {
+  const sidebar = document.getElementById('sidebar-navigation');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) sidebar.classList.add('open');
+  if (overlay) overlay.classList.add('open');
+}
+
+/**
+ * Affiche ou masque la barre de navigation inférieure et le bouton menu mobile
+ * selon la largeur de l'écran et l'état d'authentification.
+ */
+function updateMobileChromeVisibility() {
+  const token = localStorage.getItem('token');
+  const bottomNav = document.getElementById('bottom-navigation');
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const isMobile = window.innerWidth <= 767;
+
+  if (bottomNav) {
+    // Retirer le style inline pour laisser le CSS gérer l'affichage
+    bottomNav.style.display = '';
+    if (!token || !isMobile) {
+      bottomNav.style.display = 'none';
+    }
+  }
+
+  if (mobileMenuBtn) {
+    mobileMenuBtn.style.display = (token && isMobile) ? '' : 'none';
+  }
 }
 
 /**
@@ -216,6 +306,8 @@ window.addEventListener('DOMContentLoaded', () => {
       const header = document.getElementById('main-header');
       if (sidebar) sidebar.style.display = 'none';
       if (header) header.style.display = 'none';
+      closeMobileSidebar();
+      updateMobileChromeVisibility();
     }
   });
 
@@ -227,19 +319,43 @@ window.addEventListener('DOMContentLoaded', () => {
     const header = document.getElementById('main-header');
     if (sidebar) sidebar.style.display = 'none';
     if (header) header.style.display = 'none';
+    closeMobileSidebar();
+    updateMobileChromeVisibility();
   });
 
   // Configurer la cloche de notifications
   document.getElementById('bell-btn').addEventListener('click', openNotificationsModal);
 
   // Mettre à jour le menu sur chaque routage
-  window.addEventListener('hashchange', updateMenuVisibility);
+  window.addEventListener('hashchange', () => {
+    updateMenuVisibility();
+    updateBottomNavActive();
+    updateMobileChromeVisibility();
+    closeMobileSidebar();
+  });
 
   // Initialisation du routeur
   router.init();
   
   // Exécuter la visibilité du menu
   updateMenuVisibility();
+  updateBottomNavActive();
+  updateMobileChromeVisibility();
+
+  // Bouton menu mobile — ouvrir la sidebar
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', openMobileSidebar);
+  }
+
+  // Overlay — fermer la sidebar au clic
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', closeMobileSidebar);
+  }
+
+  // Mettre à jour l'affichage des éléments mobiles au redimensionnement
+  window.addEventListener('resize', updateMobileChromeVisibility);
 
   // Lancer le polling de notifications (toutes les 30 secondes)
   refreshNotifications();

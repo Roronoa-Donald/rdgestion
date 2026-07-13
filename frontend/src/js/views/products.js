@@ -219,19 +219,19 @@ export class ProductsView {
 
         return `
           <tr>
-            <td><img src="${escapeAttr(imageUrl)}" alt="photo" style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--bg-tertiary);"></td>
-            <td><strong>${productName}</strong></td>
-            <td><code>${sku}</code></td>
-            <td><span class="badge" style="background: var(--bg-tertiary);">${categoryName}</span></td>
-            <td>${Number(p.purchase_price).toLocaleString()}</td>
-            <td style="font-weight: 600;">${Number(p.sell_price).toLocaleString()} FCFA</td>
-            <td style="text-align: center;">
+            <td data-label="Image"><img src="${escapeAttr(imageUrl)}" alt="photo" style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--bg-tertiary);"></td>
+            <td data-label="Produit"><strong>${productName}</strong></td>
+            <td data-label="SKU"><code>${sku}</code></td>
+            <td data-label="Catégorie"><span class="badge" style="background: var(--bg-tertiary);">${categoryName}</span></td>
+            <td data-label="P. Achat">${Number(p.purchase_price).toLocaleString()}</td>
+            <td data-label="P. Vente" style="font-weight: 600;">${Number(p.sell_price).toLocaleString()} FCFA</td>
+            <td data-label="Stock" style="text-align: center;">
               <span class="badge ${stockBadgeClass}">${p.stock_quantity}</span>
             </td>
-            <td style="text-align: center; ${isExpired ? 'color: var(--error); font-weight: 600;' : ''}">
+            <td data-label="Date Péremption" style="text-align: center; ${isExpired ? 'color: var(--error); font-weight: 600;' : ''}">
               ${expiryText} ${isExpired ? '<br><small>(Expiré)</small>' : ''}
             </td>
-            <td style="text-align: right;">${actionButtons}</td>
+            <td data-label="Actions" style="text-align: right;">${actionButtons}</td>
           </tr>
         `;
       }).join('');

@@ -204,15 +204,15 @@ export class SalesView {
 
         return `
           <tr style="${s.is_cancelled ? 'opacity: 0.6;' : ''}">
-            <td><strong>${transactionNumber}</strong></td>
-            <td>${datetime}</td>
-            <td><code style="font-size: 12px;">${sellerName}</code></td>
-            <td>${methodLabel}</td>
-            <td>${fmtAmt(s.subtotal)}</td>
-            <td style="color: var(--error);">${discountText}</td>
-            <td style="font-weight: 700;">${fmtAmt(s.total_amount)} FCFA</td>
-            <td style="text-align: center;">${statusBadge}</td>
-            <td style="text-align: right;">
+            <td data-label="Facture N°"><strong>${transactionNumber}</strong></td>
+            <td data-label="Date & Heure">${datetime}</td>
+            <td data-label="Vendeur"><code style="font-size: 12px;">${sellerName}</code></td>
+            <td data-label="Mode Paiement">${methodLabel}</td>
+            <td data-label="Sous-total">${fmtAmt(s.subtotal)}</td>
+            <td data-label="Remise" style="color: var(--error);">${discountText}</td>
+            <td data-label="Net à Payer" style="font-weight: 700;">${fmtAmt(s.total_amount)} FCFA</td>
+            <td data-label="Statut" style="text-align: center;">${statusBadge}</td>
+            <td data-label="Actions" style="text-align: right;">
               <button class="btn btn-secondary btn-detail" data-id="${escapeAttr(s.id)}" style="padding: 4px 8px; font-size: 11px;">Voir</button>
             </td>
           </tr>

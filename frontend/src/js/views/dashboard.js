@@ -539,9 +539,9 @@ export class DashboardView {
 
     topBody.innerHTML = products.map(p => `
       <tr>
-        <td><strong>${escapeHtml(p.product_name)}</strong></td>
-        <td style="text-align: center;"><span class="badge" style="background: var(--bg-tertiary);">${p.total_quantity}</span></td>
-        <td style="text-align: right; font-weight: 600;">${Number(p.total_revenue).toLocaleString()} ${currency}</td>
+        <td data-label="Produit"><strong>${escapeHtml(p.product_name)}</strong></td>
+        <td data-label="Quantité vendue" style="text-align: center;"><span class="badge" style="background: var(--bg-tertiary);">${p.total_quantity}</span></td>
+        <td data-label="Chiffre d'affaires" style="text-align: right; font-weight: 600;">${Number(p.total_revenue).toLocaleString()} ${currency}</td>
       </tr>
     `).join('');
   }

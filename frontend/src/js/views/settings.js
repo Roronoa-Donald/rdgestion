@@ -337,14 +337,14 @@ export class SettingsView {
 
         return `
           <tr>
-            <td><code>${username}</code></td>
-            <td><strong>${displayName}</strong></td>
-            <td>${created}</td>
-            <td><small>${login}</small></td>
-            <td style="text-align: center;">
+            <td data-label="Identifiant unique de connexion"><code>${username}</code></td>
+            <td data-label="Nom d'affichage"><strong>${displayName}</strong></td>
+            <td data-label="Créé le">${created}</td>
+            <td data-label="Dernière connexion"><small>${login}</small></td>
+            <td data-label="Statut" style="text-align: center;">
               <span class="badge ${badgeClass}">${badgeLabel}</span>
             </td>
-            <td style="text-align: right;">
+            <td data-label="Action" style="text-align: right;">
               <button class="btn btn-secondary btn-toggle-vendor" data-id="${escapeAttr(v.id)}" data-active="${v.is_active}" style="padding: 4px 8px; font-size: 11px;">
                 ${actionLabel}
               </button>

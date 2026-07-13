@@ -279,7 +279,7 @@ export class StockView {
 
       return `
         <tr>
-          <td>
+          <td data-label="Produit">
             <div style="display: flex; align-items: center; gap: 12px;">
               ${imageHtml}
               <div>
@@ -288,13 +288,13 @@ export class StockView {
               </div>
             </div>
           </td>
-          <td style="text-align: center;"><span style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 12px; font-size: 11px;">${categoryName}</span></td>
-          <td style="text-align: center;">
+          <td data-label="Catégorie" style="text-align: center;"><span style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 12px; font-size: 11px;">${categoryName}</span></td>
+          <td data-label="Stock actuel" style="text-align: center;">
             <span style="font-size: 16px; font-weight: 700; color: ${isOut ? 'var(--error)' : (isLow ? 'var(--warning)' : 'var(--text-primary)')};">${p.stock_quantity}</span>
           </td>
-          <td style="text-align: center; color: var(--text-secondary);">${threshold}</td>
-          <td style="text-align: center;">${statusBadge}</td>
-          <td style="text-align: right;">
+          <td data-label="Seuil d'alerte" style="text-align: center; color: var(--text-secondary);">${threshold}</td>
+          <td data-label="Statut" style="text-align: center;">${statusBadge}</td>
+          <td data-label="Actions rapides" style="text-align: right;">
             <div style="display: flex; gap: 6px; justify-content: flex-end;">
               <button class="btn btn-secondary btn-quick-stock" data-id="${escapeAttr(p.id)}" data-type="in" title="Ajouter du stock" aria-label="Ajouter du stock pour ${escapeAttr(p.name)}" style="padding: 6px 10px; font-size: 12px; min-height: 36px; min-width: 36px; display: inline-flex; align-items: center; gap: 4px;">
                 <svg width="14" height="14" fill="none" stroke="var(--success)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>

@@ -55,3 +55,11 @@ test-results/
 .opencode/
 .vercel
 .env*
+
+# Temporary / generated files
+nul
+*.tmp
+
+# Python (temp scripts)
+__pycache__/
+*.pyc
