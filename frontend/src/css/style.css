@@ -1537,6 +1537,18 @@ textarea:disabled {
   animation: modalIn 0.24s var(--ease-snap) both;
 }
 
+/* Base overlay for all view modals (products, pos, stock, sales) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: overlayIn 0.2s ease;
+}
+
 @keyframes overlayIn {
   from { opacity: 0; }
   to { opacity: 1; }

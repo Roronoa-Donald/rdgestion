@@ -275,72 +275,78 @@ export class SalesView {
       : `<button id="btn-modal-cancel-sale" class="btn btn-danger sale-cancel-btn">Annuler cette vente (recrediter les stocks)</button>`;
 
     container.innerHTML = `
-      <div class="card sale-detail-inline" role="dialog" aria-modal="true" aria-labelledby="sale-detail-title">
-        <div class="sale-detail-header">
-          <h3 id="sale-detail-title">Détail Facture : ${transactionNumber}</h3>
-          <button id="panel-close-sale" class="panel-close-btn" title="Fermer (Échap)" aria-label="Fermer le panneau de détail">×</button>
-        </div>
-
-        ${cancelSection}
-
-        <div class="sale-info-grid">
-          <div class="sale-info-item"><span class="sale-info-label">Date :</span> ${formattedDate}</div>
-          <div class="sale-info-item"><span class="sale-info-label">Vendeur :</span> ${sellerName}</div>
-          <div class="sale-info-item"><span class="sale-info-label">Mode :</span> ${sale.payment_method === 'MOBILE_MONEY' ? 'Mobile Money' : 'Espèces'}</div>
-          ${sale.momo_reference ? `<div class="sale-info-item"><span class="sale-info-label">Réf MoMo :</span> <code class="sale-momo-ref">${momoReference}</code></div>` : ''}
-        </div>
-
-        <div class="table-responsive">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Article</th>
-                <th class="text-center">Qté</th>
-                <th class="text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.length > 0
-                ? items.map(item => {
-                    const itemPrice = formatAmount(item.unit_sell_price);
-                    const itemTotal = formatAmount(item.total_price);
-                    return `
-                    <tr>
-                      <td>${escapeHtml(item.product_name || 'Produit inconnu')}<br><small class="text-secondary">${itemPrice !== null ? itemPrice + ' ' + currency : 'N/A'}</small></td>
-                      <td class="text-center">${item.quantity || 0}</td>
-                      <td class="text-right font-semibold">${itemTotal !== null ? itemTotal + ' ' + currency : 'N/A'}</td>
-                    </tr>
-                  `;}).join('')
-                : '<tr><td colspan="3" class="text-center text-secondary" style="padding: var(--spacing-lg, 24px);">Aucun article associé à cette vente. Vérifiez l\'intégrité de la transaction.</td></tr>'
-              }
-            </tbody>
-          </table>
-        </div>
-
-        <div class="sale-totals">
-          <div class="sale-total-row">
-            <span class="text-secondary">Sous-total :</span>
-            <span class="font-semibold">${subtotal !== null ? subtotal + ' ' + currency : 'N/A'}</span>
+      <div class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content" style="max-width: 640px;">
+          <div class="modal-header">
+            <h3 id="sale-detail-title" style="font-size: 16px; font-weight: 600;">Détail Facture : ${transactionNumber}</h3>
+            <button id="panel-close-sale" style="font-size: 20px;" aria-label="Fermer la fenêtre">×</button>
           </div>
-          ${formatAmount(sale.discount_amount) > 0 ? `
-            <div class="sale-total-row sale-discount-row">
-              <span>Remise :</span>
-              <span class="font-semibold">-${discount} ${currency}</span>
+
+          <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+            ${cancelSection}
+
+            <div class="sale-info-grid">
+              <div class="sale-info-item"><span class="sale-info-label">Date :</span> ${formattedDate}</div>
+              <div class="sale-info-item"><span class="sale-info-label">Vendeur :</span> ${sellerName}</div>
+              <div class="sale-info-item"><span class="sale-info-label">Mode :</span> ${sale.payment_method === 'MOBILE_MONEY' ? 'Mobile Money' : 'Espèces'}</div>
+              ${sale.momo_reference ? `<div class="sale-info-item"><span class="sale-info-label">Réf MoMo :</span> <code class="sale-momo-ref">${momoReference}</code></div>` : ''}
             </div>
-          ` : ''}
-          <div class="sale-total-row sale-total-final">
-            <span>TOTAL NET :</span>
-            <span>${total !== null ? total + ' ' + currency : 'N/A'}</span>
-          </div>
-        </div>
 
-        <div class="sale-detail-actions">
-          <button id="btn-modal-reprint-ticket" class="btn btn-primary">Imprimer le ticket de caisse</button>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Article</th>
+                    <th class="text-center">Qté</th>
+                    <th class="text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${items.length > 0
+                    ? items.map(item => {
+                        const itemPrice = formatAmount(item.unit_sell_price);
+                        const itemTotal = formatAmount(item.total_price);
+                        return `
+                        <tr>
+                          <td>${escapeHtml(item.product_name || 'Produit inconnu')}<br><small class="text-secondary">${itemPrice !== null ? itemPrice + ' ' + currency : 'N/A'}</small></td>
+                          <td class="text-center">${item.quantity || 0}</td>
+                          <td class="text-right font-semibold">${itemTotal !== null ? itemTotal + ' ' + currency : 'N/A'}</td>
+                        </tr>
+                      `;}).join('')
+                    : '<tr><td colspan="3" class="text-center text-secondary" style="padding: var(--spacing-lg, 24px);">Aucun article associé à cette vente. Vérifiez l\'intégrité de la transaction.</td></tr>'
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="sale-totals">
+              <div class="sale-total-row">
+                <span class="text-secondary">Sous-total :</span>
+                <span class="font-semibold">${subtotal !== null ? subtotal + ' ' + currency : 'N/A'}</span>
+              </div>
+              ${formatAmount(sale.discount_amount) > 0 ? `
+                <div class="sale-total-row sale-discount-row">
+                  <span>Remise :</span>
+                  <span class="font-semibold">-${discount} ${currency}</span>
+                </div>
+              ` : ''}
+              <div class="sale-total-row sale-total-final">
+                <span>TOTAL NET :</span>
+                <span>${total !== null ? total + ' ' + currency : 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer" style="justify-content: space-between;">
+            <button id="btn-modal-reprint-ticket" class="btn btn-primary">Imprimer le ticket</button>
+            <button id="btn-modal-close-detail" class="btn btn-secondary">Fermer</button>
+          </div>
         </div>
       </div>
     `;
 
-    const panel = container.querySelector('.sale-detail-inline');
+    const panel = container.querySelector('.modal-content');
+    const overlay = container.querySelector('.modal-overlay');
     const closeFn = () => {
       container.innerHTML = '';
     };
@@ -351,6 +357,10 @@ export class SalesView {
     } catch (_) {}
 
     document.getElementById('panel-close-sale').addEventListener('click', closeFn);
+    document.getElementById('btn-modal-close-detail').addEventListener('click', closeFn);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeFn();
+    });
 
     document.getElementById('btn-modal-reprint-ticket').addEventListener('click', () => {
       API.sales.openTicket(sale.id).catch((err) => alertModal(err.message, { title: 'Erreur' }));
