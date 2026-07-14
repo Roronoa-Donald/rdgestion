@@ -1401,21 +1401,28 @@ textarea:disabled {
   position: fixed;
   top: 24px;
   right: 24px;
-  z-index: 9999;
+  z-index: 10001;
   display: flex;
   flex-direction: column;
   gap: 12px;
   pointer-events: none;
 }
 
-/* Mobile Toast Position: Bottom Center */
-@media (max-width: 480px) {
+/* Mobile Toast Position: Bottom Center (above bottom nav) */
+@media (max-width: 767px) {
   #toast-container {
     top: auto;
-    bottom: 24px;
+    bottom: 80px;
     right: 50%;
     transform: translateX(50%);
     align-items: center;
+    width: calc(100% - 32px);
+  }
+
+  .toast-notification {
+    min-width: unset;
+    max-width: 100%;
+    width: 100%;
   }
 }
 
@@ -1468,20 +1475,20 @@ textarea:disabled {
 }
 
 .toast-notification {
-  position: fixed;
-  padding: 12px 16px;
+  position: relative;
+  padding: 14px 18px;
   border-radius: var(--radius);
   color: #fff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   display: flex;
   align-items: center;
   gap: 10px;
   opacity: 0;
   transform: translateX(20px);
-  transition: opacity 0.2s, transform 0.2s, background-color 0.2s;
-  z-index: 10001;
+  transition: opacity 0.3s, transform 0.3s, background-color 0.2s;
+  pointer-events: auto;
   min-width: 280px;
   max-width: 400px;
 }
@@ -2575,22 +2582,6 @@ textarea:disabled {
     max-height: 100vh;
     height: 100vh;
     border-radius: 0;
-  }
-
-  /* --- Toast Mobile --- */
-  #toast-container {
-    top: auto;
-    bottom: 80px;
-    right: 50%;
-    transform: translateX(50%);
-    align-items: center;
-    width: calc(100% - 32px);
-  }
-
-  .toast-notification {
-    min-width: unset;
-    max-width: 100%;
-    width: 100%;
   }
 
   /* --- POS Cart Mobile Full --- */

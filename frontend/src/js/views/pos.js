@@ -580,7 +580,7 @@ export class POSView {
       // pour conserver le contexte user-gesture.
       const ticketWindow = window.open('', '_blank', 'width=350,height=600');
       if (!ticketWindow) {
-        Toast.error('Le navigateur a bloqué la fenêtre d’impression. Autorisez les popups pour RDGESTION.');
+        alertModal('Le navigateur a bloqué la fenêtre d\'impression. Autorisez les popups pour RDGESTION.', { title: 'Impression bloquée' });
         return;
       }
       ticketWindow.document.write('<!doctype html><html><head><title>Ticket RDGESTION</title><style>body{font-family:sans-serif;text-align:center;padding:40px;color:#888;}p{animation:pulse 1s infinite}@keyframes pulse{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}</style></head><body><p>Préparation du ticket…</p></body></html>');
@@ -594,7 +594,7 @@ export class POSView {
         }, "Génération du ticket...");
       } catch (err) {
         ticketWindow.close();
-        Toast.error(err.message);
+        alertModal(err.message, { title: 'Erreur' });
       }
     });
   }
