@@ -2182,10 +2182,12 @@ textarea:disabled {
 
   .sidebar {
     transform: translateX(-100%);
-    z-index: 101;
+    z-index: 201;
     box-shadow: 4px 0 24px rgba(0,0,0,0.12);
     transition: transform 0.32s var(--ease-out);
     animation: none;
+    height: 100vh;
+    padding-bottom: 0;
   }
 
   .sidebar.open {
