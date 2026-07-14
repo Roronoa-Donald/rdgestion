@@ -39,51 +39,57 @@ export class SettingsView {
   async afterRender() {
     document.getElementById('current-view-title').textContent = 'Paramètres';
 
-    // Détecter le retour de paiement FedaPay (?payment=done)
-    if (this.queryParams.payment === 'done') {
-      // Nettoyer l'URL
-      const cleanHash = window.location.hash.split('?')[0];
-      window.history.replaceState(null, '', cleanHash);
+    // Vérifier si une transaction FedaPay est en attente d'activation
+    const transactionId = localStorage.getItem('fedapay_transaction_id');
+    if (transactionId) {
+      // Nettoyer l'URL si on a payment=done
+      if (this.queryParams.payment === 'done') {
+        const cleanHash = window.location.hash.split('?')[0];
+        window.history.replaceState(null, '', cleanHash);
+      }
       // Forcer l'onglet abonnement
       this.activeTab = 'subscription';
+      // Supprimer l'ID immédiatement pour éviter les re-vérifications
+      localStorage.removeItem('fedapay_transaction_id');
+      const billingType = localStorage.getItem('fedapay_billing_type') || 'MONTHLY';
+      localStorage.removeItem('fedapay_billing_type');
 
-      // Vérifier la transaction si on a un ID stocké
-      const transactionId = sessionStorage.getItem('fedapay_transaction_id');
-      if (transactionId) {
-        sessionStorage.removeItem('fedapay_transaction_id');
-        // Polling : vérifier la transaction plusieurs fois (le webhook peut prendre du temps)
-        let activated = false;
-        for (let attempt = 0; attempt < 5; attempt++) {
-          try {
-            const res = await API.payments.verifyTransaction(transactionId);
-            if (res?.success && res?.data?.is_pro) {
-              activated = true;
-              alertModal('Votre abonnement PRO a été activé avec succès ! 🎉', { title: 'PRO activé' });
-              break;
-            }
-            if (res?.data?.status === 'approved' && res?.data?.already_activated) {
-              activated = true;
-              alertModal('Votre abonnement PRO est déjà actif ! 🎉', { title: 'PRO actif' });
-              break;
-            }
-          } catch (e) {
-            // Ignorer les erreurs et réessayer
+      // Polling : vérifier la transaction plusieurs fois (le paiement peut prendre du temps)
+      let activated = false;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          const res = await API.payments.verifyTransaction(transactionId);
+          if (res?.success && res?.data?.is_pro) {
+            activated = true;
+            alertModal('Votre abonnement PRO a été activé avec succès ! 🎉', { title: 'PRO activé' });
+            break;
           }
-          // Attendre 2 secondes entre chaque tentative
-          await new Promise(r => setTimeout(r, 2000));
+          if (res?.data?.status === 'approved' && res?.data?.already_activated) {
+            activated = true;
+            alertModal('Votre abonnement PRO est déjà actif ! 🎉', { title: 'PRO actif' });
+            break;
+          }
+        } catch (e) {
+          // Ignorer les erreurs et réessayer
         }
-        if (!activated) {
-          alertModal(
-            'Votre paiement a été reçu mais l\'activation PRO est en cours. Si votre compte n\'est pas PRO sous 5 minutes, contactez le support.',
-            { title: 'Paiement en cours' }
-          );
-        }
-      } else {
+        // Attendre 3 secondes entre chaque tentative (10 tentatives = 30s max)
+        await new Promise(r => setTimeout(r, 3000));
+      }
+      if (!activated) {
         alertModal(
-          'Votre paiement est en cours de traitement. Votre abonnement PRO sera activé dans quelques instants.',
+          'Votre paiement a été reçu mais l\'activation PRO est en cours. Si votre compte n\'est pas PRO sous 10 minutes, contactez le support.',
           { title: 'Paiement en cours' }
         );
       }
+    } else if (this.queryParams.payment === 'done') {
+      // Retour de FedaPay sans ID stocké — nettoyer l'URL
+      const cleanHash = window.location.hash.split('?')[0];
+      window.history.replaceState(null, '', cleanHash);
+      this.activeTab = 'subscription';
+      alertModal(
+        'Votre paiement est en cours de traitement. Votre abonnement PRO sera activé dans quelques instants.',
+        { title: 'Paiement en cours' }
+      );
     }
 
     // Attacher onglets avec sémantique ARIA tablist/tab/tabpanel + navigation flèches
@@ -741,9 +747,9 @@ export class SettingsView {
           if (checkoutUrl) {
             // Stocker l'ID de transaction pour vérification au retour
             if (transactionId) {
-              sessionStorage.setItem('fedapay_transaction_id', transactionId);
+              localStorage.setItem('fedapay_transaction_id', transactionId);
+              localStorage.setItem('fedapay_billing_type', billingType);
             }
-            alertModal('Redirection vers FedaPay...', { title: 'Paiement' });
             window.location.href = checkoutUrl;
           } else {
             throw new Error('URL de paiement non reçue.');
