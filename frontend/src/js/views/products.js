@@ -2,6 +2,7 @@ import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
+import { notifyLocalStorageChange } from '../utils/onboarding.js';
 
 export class ProductsView {
   constructor(queryParams = {}) {
@@ -453,6 +454,7 @@ export class ProductsView {
           } else {
             await API.products.create(formData);
             localStorage.setItem('rdg_setup_product_created', 'true');
+            notifyLocalStorageChange('rdg_setup_product_created');
           }
           closeFn();
           await this.loadProducts();

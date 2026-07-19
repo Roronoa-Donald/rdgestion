@@ -11,6 +11,7 @@ import { AdminView } from './views/admin.js';
 import { API } from './api.js';
 import { escapeHtml } from './utils.js';
 import { Toast, LoadingIndicator, confirmModal, alertModal } from './utils/ui.js';
+import { guidedOnboarding, isGuidedOnboardingDone } from './utils/onboarding.js';
 
 // Table de routage de la Single Page Application (SPA)
 const routes = {
@@ -341,6 +342,24 @@ window.addEventListener('DOMContentLoaded', () => {
   updateMenuVisibility();
   updateBottomNavActive();
   updateMobileChromeVisibility();
+
+  // Démarrer l'onboarding guidé pour les ADMIN qui ne l'ont pas encore terminé
+  // (se déclenche après l'arrivée sur le dashboard post-login/inscription)
+  const tryStartOnboarding = () => {
+    const userRaw = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    if (!token || !userRaw) return;
+    const user = JSON.parse(userRaw);
+    if (user.role === 'ADMIN' && !isGuidedOnboardingDone()) {
+      // Petite attente pour que la vue courante soit rendue
+      setTimeout(() => guidedOnboarding.start(), 600);
+    }
+  };
+  tryStartOnboarding();
+  window.addEventListener('hashchange', () => {
+    // Re-tenter le démarrage si on arrive sur une route auth après login
+    if (!isGuidedOnboardingDone()) tryStartOnboarding();
+  });
 
   // Bouton menu mobile — ouvrir la sidebar
   const mobileMenuBtn = document.getElementById('mobile-menu-btn');

@@ -2,6 +2,7 @@ import { API } from '../api.js';
 import { escapeHtml, escapeAttr } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupTablist, setupDialog } from '../utils/aria.js';
+import { notifyLocalStorageChange } from '../utils/onboarding.js';
 
 export class SettingsView {
   constructor(queryParams = {}) {
@@ -143,6 +144,7 @@ export class SettingsView {
       this.bindVendorsTabEvents();
     } else if (this.activeTab === 'referrals') {
       localStorage.setItem('rdg_setup_referral_seen', 'true');
+      notifyLocalStorageChange('rdg_setup_referral_seen');
       container.innerHTML = this.renderReferralsTab();
       await this.loadReferrals();
       this.bindReferralsTabEvents();

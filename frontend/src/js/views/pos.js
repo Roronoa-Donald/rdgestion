@@ -2,6 +2,7 @@ import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
 import { Toast, withLoading, Skeletons, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
+import { notifyLocalStorageChange } from '../utils/onboarding.js';
 
 export class POSView {
   constructor() {
@@ -528,6 +529,10 @@ export class POSView {
       await withLoading(btn, async () => {
         const res = await API.sales.create(payload);
         const sale = res.data.sale;
+
+        // Marquer la vente comme validée pour l'onboarding guidé
+        localStorage.setItem('rdg_setup_sale_validated', 'true');
+        notifyLocalStorageChange('rdg_setup_sale_validated');
 
         this.openSuccessModal(sale);
 

@@ -1,0 +1,292 @@
+/* ==========================================
+   RDGESTION — Onboarding Guidé (Spotlight)
+   Overlay flouté + zone éclairée + tooltip
+   Responsive desktop & mobile
+   ========================================== */
+
+/* Overlay qui floute tout l'écran sauf la zone spotlight */
+.rdg-onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  /* Masque SVG : trou rectangulaire aux coordonnées du spotlight */
+  -webkit-mask-image: radial-gradient(
+    circle at center,
+    transparent 0,
+    transparent 0
+  );
+  mask-image: radial-gradient(
+    circle at center,
+    transparent 0,
+    transparent 0
+  );
+  background: rgba(15, 17, 21, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  transition: background 0.25s var(--ease-out);
+}
+
+/* Couche sombre pleine (alternative sans mask, pour compat) */
+.rdg-onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9997;
+  background: rgba(15, 17, 21, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+
+/* Le spotlight utilise 4 divs sombres autour de la zone éclairée
+   pour éviter les soucis de mask-image sur certains navigateurs mobile */
+.rdg-spotlight-shade {
+  position: fixed;
+  z-index: 9998;
+  background: rgba(15, 17, 21, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  pointer-events: auto;
+  transition: all 0.3s var(--ease-out);
+}
+
+.rdg-spotlight-shade.top    { top: 0; left: 0; right: 0; height: 0; }
+.rdg-spotlight-shade.bottom { bottom: 0; left: 0; right: 0; height: 0; }
+.rdg-spotlight-shade.left   { top: 0; bottom: 0; left: 0; width: 0; }
+.rdg-spotlight-shade.right  { top: 0; bottom: 0; right: 0; width: 0; }
+
+/* Halo lumineux autour de la zone spotlight */
+.rdg-spotlight-ring {
+  position: fixed;
+  z-index: 9998;
+  border: 2px solid var(--accent-color);
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 4px rgba(4, 120, 87, 0.18),
+    0 0 0 9999px rgba(15, 17, 21, 0.55);
+  pointer-events: none;
+  transition: all 0.3s var(--ease-out);
+  animation: rdg-spotlight-pulse 2s var(--ease-out) infinite;
+}
+
+@keyframes rdg-spotlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(4, 120, 87, 0.18), 0 0 0 9999px rgba(15, 17, 21, 0.55); }
+  50%      { box-shadow: 0 0 0 8px rgba(4, 120, 87, 0.28), 0 0 0 9999px rgba(15, 17, 21, 0.55); }
+}
+
+/* Tooltip / Cartouche d'instruction */
+.rdg-onboarding-tooltip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 360px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  padding: 18px 20px 16px;
+  pointer-events: auto;
+  animation: rdg-tooltip-in 0.28s var(--ease-out);
+}
+
+@keyframes rdg-tooltip-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Flèche pointant vers la zone spotlight */
+.rdg-onboarding-tooltip::before {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  transform: rotate(45deg);
+  z-index: -1;
+}
+.rdg-onboarding-tooltip[data-placement="bottom"]::before {
+  top: -7px;
+  left: 24px;
+  border-right: none;
+  border-bottom: none;
+}
+.rdg-onboarding-tooltip[data-placement="top"]::before {
+  bottom: -7px;
+  left: 24px;
+  border-left: none;
+  border-top: none;
+}
+.rdg-onboarding-tooltip[data-placement="right"]::before {
+  top: 24px;
+  left: -7px;
+  border-right: none;
+  border-top: none;
+}
+.rdg-onboarding-tooltip[data-placement="left"]::before {
+  top: 24px;
+  right: -7px;
+  border-left: none;
+  border-bottom: none;
+}
+
+/* En-tête du tooltip : grand titre + barre de progression */
+.rdg-tt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.rdg-tt-eyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--accent-color);
+}
+
+.rdg-tt-counter {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 2px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.rdg-tt-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+  line-height: 1.25;
+}
+
+.rdg-tt-instruction {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0 0 14px;
+}
+
+/* Barre de progression */
+.rdg-tt-progress {
+  margin: 0 0 14px;
+}
+.rdg-tt-progress-track {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rdg-tt-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-color), #34d399);
+  border-radius: 999px;
+  transition: width 0.4s var(--ease-out);
+}
+.rdg-tt-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Bouton d'action principal */
+.rdg-tt-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.rdg-tt-btn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.rdg-tt-btn-primary {
+  background: var(--accent-color);
+  color: var(--accent-contrast);
+}
+.rdg-tt-btn-primary:hover { background: var(--accent-hover); }
+.rdg-tt-btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 9px 8px;
+}
+.rdg-tt-btn-ghost:hover { color: var(--text-secondary); }
+
+/* Indicateur "cliquez ici" animé */
+.rdg-tt-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--accent-color);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.rdg-tt-hint-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  animation: rdg-hint-blink 1s ease-in-out infinite;
+}
+@keyframes rdg-hint-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(0.7); }
+}
+
+/* === Responsive mobile === */
+@media (max-width: 768px) {
+  .rdg-onboarding-tooltip {
+    position: fixed;
+    left: 12px !important;
+    right: 12px !important;
+    max-width: none;
+    width: auto;
+    bottom: 16px;
+    top: auto !important;
+    padding: 16px 16px 14px;
+  }
+  .rdg-onboarding-tooltip::before {
+    display: none;
+  }
+  .rdg-tt-title { font-size: 17px; }
+  .rdg-tt-instruction { font-size: 13px; }
+
+  /* Sur mobile, le spotlight s'étire moins pour laisser la tooltip respirer */
+  .rdg-spotlight-ring {
+    border-radius: 6px;
+  }
+}
+
+/* En mode mobile avec clavier ouvert, on colle la tooltip en haut */
+@media (max-width: 768px) and (orientation: portrait) {
+  .rdg-onboarding-tooltip.is-keyboard-open {
+    top: 12px !important;
+    bottom: auto;
+  }
+}
+
+/* Respect de prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .rdg-spotlight-ring,
+  .rdg-onboarding-tooltip,
+  .rdg-tt-progress-bar,
+  .rdg-tt-hint-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+}

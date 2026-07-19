@@ -1,6 +1,7 @@
 import { API } from '../api.js';
 import { escapeHtml } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
+import { isGuidedOnboardingDone } from '../utils/onboarding.js';
 
 const SETUP_DISMISSED_KEY = 'rdg_setup_dismissed';
 const SETUP_REFERRAL_SEEN_KEY = 'rdg_setup_referral_seen';
@@ -70,7 +71,11 @@ export class DashboardView {
       const referralDone = localStorage.getItem(SETUP_REFERRAL_SEEN_KEY) === 'true';
       const setupCompleted = productDone && referralDone;
 
-      if (!dismissed && !setupCompleted) {
+      // Si l'onboarding guidé (spotlight) est en cours ou déjà terminé,
+      // on affiche directement le dashboard standard pour éviter le conflit visuel.
+      const guidedActive = !isGuidedOnboardingDone();
+
+      if (!dismissed && !setupCompleted && !guidedActive) {
         
         if (isStillActive()) this.renderOnboardingWizard(stats, productDone, referralDone);
       } else {
