@@ -35,6 +35,7 @@ const ONBOARDING_STEPS = [
     title: 'Créez votre premier produit',
     instruction: 'Cliquez sur le bouton « Nouveau produit » puis remplissez le formulaire (nom, prix, stock). Validez pour l\'enregistrer.',
     selector: '#btn-new-prod',
+    followSelector: '#modal-container .modal-content',
     route: '#/products',
     placement: 'bottom',
     cta: null, // Pas de bouton : l'utilisateur doit cliquer sur la zone spotlight
@@ -55,6 +56,7 @@ const ONBOARDING_STEPS = [
     title: 'Validez une vente test',
     instruction: 'Ajoutez un produit au panier, saisissez le montant reçu en espèces, puis cliquez sur « VALIDER LA VENTE ».',
     selector: '#btn-validate-sale',
+    followSelector: '#pos-modal-container .modal-content',
     route: '#/pos',
     placement: 'top',
     cta: null,
@@ -75,6 +77,7 @@ const ONBOARDING_STEPS = [
     title: 'Copiez votre code de parrainage',
     instruction: 'Cliquez sur « Copier le code » pour récupérer votre code unique. Vous pourrez le partager à vos confrères.',
     selector: '#btn-copy-code',
+    followSelector: '#btn-copy-code',
     route: '#/settings',
     placement: 'top',
     cta: null,
@@ -93,6 +96,7 @@ class GuidedOnboarding {
     this.hashHandler = null;
     this.storageHandler = null;
     this.pollTimer = null;
+    this._lastFollowTarget = null;
   }
 
   /**
@@ -100,6 +104,9 @@ class GuidedOnboarding {
    */
   start() {
     if (localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true') return;
+    // Empêcher la double-initialisation : si l'onboarding est déjà actif,
+    // ne pas le redémarrer (les changements de hash le déclencheraient sinon plusieurs fois).
+    if (this.active) return;
     this.active = true;
     this.currentStepIndex = 0;
     this._buildOverlay();
@@ -178,6 +185,19 @@ class GuidedOnboarding {
     };
     window.addEventListener('storage', this.storageHandler);
     window.addEventListener('rdg-localstorage', this.storageHandler);
+
+    // Polling DOM pour suivre dynamiquement le followSelector (ex: modale qui s'ouvre)
+    this.pollTimer = setInterval(() => {
+      if (!this.active) return;
+      const step = this.steps[this.currentStepIndex];
+      if (!step || !step.followSelector) return;
+      const followTarget = this._querySelector(step.followSelector);
+      if (followTarget && followTarget !== this._lastFollowTarget) {
+        this._lastFollowTarget = followTarget;
+        this._positionSpotlight(followTarget);
+        this._placeTooltip(step.placement);
+      }
+    }, 300);
   }
 
   /**
@@ -190,6 +210,9 @@ class GuidedOnboarding {
       this.finish();
       return;
     }
+
+    // Réinitialiser le suivi dynamique à chaque nouvelle étape
+    this._lastFollowTarget = null;
 
     // Si l'étape exige une route spécifique et qu'on n'y est pas, on navigue
     if (step.route && !window.location.hash.startsWith(step.route.split('?')[0])) {
@@ -382,6 +405,7 @@ class GuidedOnboarding {
    */
   _advance() {
     this.currentStepIndex++;
+    this._lastFollowTarget = null;
     if (this.currentStepIndex >= this.steps.length) {
       this.finish();
       // Rediriger vers le dashboard à la fin
@@ -456,4 +480,11 @@ export function notifyLocalStorageChange(key) {
  */
 export function isGuidedOnboardingDone() {
   return localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+}
+
+/**
+ * Indique si l'onboarding guidé est actuellement en cours (actif).
+ */
+export function guidedOnboardingActive() {
+  return guidedOnboarding.active;
 }

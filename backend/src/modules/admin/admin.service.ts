@@ -19,11 +19,19 @@ export class SubscriptionsService {
   async activatePro(
     tenantId: string,
     billing_type: 'MONTHLY' | 'LIFETIME',
-    activatedByUserId: string,
+    activatedByUserId: string | null,
     clientIp: string,
     userAgent: string,
     activation_method: ActivationMethod = 'MANUAL'
   ): Promise<Subscription> {
+    // Le sentinel '00000000-0000-0000-0000-000000000000' n'existe pas dans la table users.
+    // Les colonnes activated_by (subscriptions) et user_id (audit_logs) acceptent NULL,
+    // donc on convertit ce sentinel en NULL pour éviter une violation de FK.
+    const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+    const effectiveUserId = (activatedByUserId && activatedByUserId !== SYSTEM_USER_ID)
+      ? activatedByUserId
+      : null;
+
     // Calculer la date de fin selon le type de facturation
     const startDate = new Date();
     let endDate: Date | null = null;
@@ -46,7 +54,7 @@ export class SubscriptionsService {
         `INSERT INTO subscriptions (tenant_id, tier, billing_type, status, start_date, end_date, activated_by, activation_method)
          VALUES ($1, 'PRO', $2, 'ACTIVE', $3, $4, $5, $6)
          RETURNING *`,
-        [tenantId, billing_type, startDate, endDate, activatedByUserId, activation_method]
+        [tenantId, billing_type, startDate, endDate, effectiveUserId, activation_method]
       );
       const sub = res.rows[0]!;
 
@@ -57,13 +65,16 @@ export class SubscriptionsService {
         [tenantId, `Votre boutique est maintenant abonnée au plan PRO (${billing_type === 'MONTHLY' ? 'mensuel' : 'à vie'}). Profitez de toutes les fonctionnalités !`]
       );
 
-      // Log d'audit
-      const userRes = await client.query<{ username: string; role: string }>('SELECT username, role FROM users WHERE id = $1', [activatedByUserId]);
-      const user = userRes.rows[0];
+      // Log d'audit — user_id accepte NULL, ne pas faire de SELECT si pas d'utilisateur
+      let user: { username: string; role: string } | null = null;
+      if (effectiveUserId) {
+        const userRes = await client.query<{ username: string; role: string }>('SELECT username, role FROM users WHERE id = $1', [effectiveUserId]);
+        user = userRes.rows[0] || null;
+      }
       await client.query(
         `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, 'SUBSCRIPTION_ACTIVATED', 'SUBSCRIPTION', $5, $6, $7, $8)`,
-        [tenantId, activatedByUserId, user?.username || null, user?.role || null, sub.id,
+        [tenantId, effectiveUserId, user?.username || null, user?.role || null, sub.id,
           JSON.stringify({ billing_type, end_date: endDate }), clientIp, userAgent]
       );
 

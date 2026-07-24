@@ -2,7 +2,7 @@ import { API } from '../api.js';
 import { escapeAttr, escapeHtml } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
-import { notifyLocalStorageChange } from '../utils/onboarding.js';
+import { notifyLocalStorageChange, isGuidedOnboardingDone, guidedOnboardingActive } from '../utils/onboarding.js';
 
 export class ProductsView {
   constructor(queryParams = {}) {
@@ -459,7 +459,9 @@ export class ProductsView {
           closeFn();
           await this.loadProducts();
 
-          if (!isEdit && this.queryParams.fromSetup === '1') {
+          // Ne pas rediriger vers le dashboard si l'onboarding guidé est actif
+          // (il gérera lui-même la navigation vers l'étape suivante)
+          if (!isEdit && this.queryParams.fromSetup === '1' && !isGuidedOnboardingDone() && !guidedOnboardingActive()) {
             window.location.hash = '#/dashboard';
           }
           alertModal(isEdit ? 'Produit mis à jour avec succès.' : 'Produit créé avec succès.', { title: isEdit ? 'Modification' : 'Création' });

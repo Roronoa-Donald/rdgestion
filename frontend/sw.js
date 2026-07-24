@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rdgestion-cache-v8';
+const CACHE_NAME = 'rdgestion-cache-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

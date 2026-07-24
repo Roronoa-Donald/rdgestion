@@ -46,7 +46,7 @@
   background: rgba(15, 17, 21, 0.55);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
-  pointer-events: auto;
+  pointer-events: none;
   transition: all 0.3s var(--ease-out);
 }
 

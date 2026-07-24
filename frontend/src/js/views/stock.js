@@ -139,8 +139,8 @@ export class StockView {
         API.categories.list()
       ]);
 
-      this.products = productsRes?.data?.products || productsRes?.data || [];
-      this.categories = categoriesRes?.data?.categories || categoriesRes?.data || [];
+      this.products = productsRes?.data?.products || productsRes?.products || productsRes?.data || [];
+      this.categories = categoriesRes?.data?.categories || categoriesRes?.categories || categoriesRes?.data || [];
 
       this.renderSummary();
       this.applyFilters();

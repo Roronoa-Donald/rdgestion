@@ -19,7 +19,8 @@
   --border-strong: #d6d6d0;
   --text-primary: #1f2328;
   --text-secondary: #5f6368;
-  --text-muted: #8c9196;
+  --text-muted: #686b70;
+  --text-tertiary: #8c9196;
   
   --accent-color: #047857;
   --accent-hover: #036949;
@@ -36,6 +37,8 @@
   --error-light: rgba(180, 35, 24, 0.1);
   --warning: #9a6700;
   --warning-light: rgba(154, 103, 0, 0.12);
+  --info: #1d4ed8;
+  --info-light: rgba(29, 78, 216, 0.1);
   
   --sidebar-width: 260px;
   --header-height: 70px;
@@ -57,7 +60,8 @@
   --border-strong: #3a3b40;
   --text-primary: #f4f4f5;
   --text-secondary: #a7a7ad;
-  --text-muted: #73737b;
+  --text-muted: #8a8a92;
+  --text-tertiary: #73737b;
 
   --accent-color: #10b981;
   --accent-hover: #059669;
@@ -74,6 +78,8 @@
   --error-light: rgba(248, 113, 113, 0.15);
   --warning: #fbbf24;
   --warning-light: rgba(251, 191, 36, 0.15);
+  --info: #60a5fa;
+  --info-light: rgba(96, 165, 250, 0.15);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
   --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.22);
@@ -163,8 +169,7 @@ textarea:disabled {
 /* Sidebar Navigation */
 .sidebar {
   width: var(--sidebar-width);
-  background-color: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
-  backdrop-filter: blur(12px);
+  background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -173,9 +178,7 @@ textarea:disabled {
   left: 0;
   top: 0;
   z-index: 100;
-  box-shadow: 12px 0 34px rgba(31, 35, 40, 0.04);
   transition: transform 0.32s var(--ease-out), background-color 0.2s var(--ease-out);
-  animation: sidebarIn 0.42s var(--ease-out) both;
 }
 
 .sidebar::after {
@@ -204,7 +207,6 @@ textarea:disabled {
   font-weight: 700;
   font-size: 18px;
   letter-spacing: 0;
-  transition: transform 0.22s var(--ease-out);
 }
 
 .logo-icon {
@@ -218,15 +220,6 @@ textarea:disabled {
   font-weight: 800;
   color: var(--accent-contrast);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-contrast) 14%, transparent);
-  transition: transform 0.28s var(--ease-snap), box-shadow 0.2s var(--ease-out);
-}
-
-.logo-container:hover {
-  transform: translateX(2px);
-}
-
-.logo-container:hover .logo-icon {
-  transform: rotate(-3deg) scale(1.04);
 }
 
 .sidebar-menu {
@@ -241,18 +234,7 @@ textarea:disabled {
 
 .menu-item {
   position: relative;
-  opacity: 0;
-  animation: navItemIn 0.36s var(--ease-out) forwards;
 }
-
-.menu-item:nth-child(1) { animation-delay: 0.03s; }
-.menu-item:nth-child(2) { animation-delay: 0.06s; }
-.menu-item:nth-child(3) { animation-delay: 0.09s; }
-.menu-item:nth-child(4) { animation-delay: 0.12s; }
-.menu-item:nth-child(5) { animation-delay: 0.15s; }
-.menu-item:nth-child(6) { animation-delay: 0.18s; }
-.menu-item:nth-child(7) { animation-delay: 0.21s; }
-.menu-item:nth-child(8) { animation-delay: 0.24s; }
 
 .menu-item::before {
   content: "";
@@ -280,24 +262,22 @@ textarea:disabled {
   font-size: 14px;
   border: 1px solid transparent;
   position: relative;
-  transition: color 0.18s var(--ease-out), background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), transform 0.22s var(--ease-out);
+  transition: color 0.18s var(--ease-out), background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out);
 }
 
 .menu-item a svg {
   opacity: 0.72;
-  transition: transform 0.24s var(--ease-snap), opacity 0.18s var(--ease-out);
+  transition: opacity 0.18s var(--ease-out);
 }
 
 .menu-item a:hover {
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
   border-color: var(--border-color);
-  transform: translateX(3px);
 }
 
 .menu-item a:hover svg {
   opacity: 1;
-  transform: translateX(1px) scale(1.04);
 }
 
 .menu-item.active a {
@@ -329,13 +309,12 @@ textarea:disabled {
   padding: 8px;
   border-radius: var(--radius);
   border: 1px solid transparent;
-  transition: background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), transform 0.22s var(--ease-out);
+  transition: background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out);
 }
 
 .user-badge:hover {
   background-color: var(--bg-tertiary);
   border-color: var(--border-color);
-  transform: translateY(-1px);
 }
 
 .user-avatar {
@@ -347,11 +326,10 @@ textarea:disabled {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  transition: transform 0.24s var(--ease-snap), background-color 0.18s var(--ease-out);
+  transition: background-color 0.18s var(--ease-out);
 }
 
 .user-badge:hover .user-avatar {
-  transform: scale(1.04);
   background-color: var(--accent-light);
 }
 
@@ -385,8 +363,7 @@ textarea:disabled {
 .main-header {
   height: var(--header-height);
   padding: 0 32px;
-  background-color: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
-  backdrop-filter: blur(12px);
+  background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -418,28 +395,18 @@ textarea:disabled {
   justify-content: center;
   color: var(--text-secondary);
   position: relative;
-  transition: color 0.18s var(--ease-out), background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), transform 0.24s var(--ease-snap), box-shadow 0.18s var(--ease-out);
+  transition: color 0.18s var(--ease-out), background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out);
 }
 
 .theme-toggle:hover, .notif-bell:hover {
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
   border-color: var(--border-strong);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.theme-toggle:hover svg {
-  transform: rotate(-10deg) scale(1.04);
-}
-
-.notif-bell:hover svg {
-  transform: translateY(-1px) rotate(4deg);
 }
 
 .theme-toggle svg,
 .notif-bell svg {
-  transition: transform 0.24s var(--ease-snap);
+  transition: none;
 }
 
 .notif-badge {
@@ -475,13 +442,11 @@ textarea:disabled {
   padding: 24px;
   margin-bottom: 24px;
   box-shadow: var(--shadow-sm);
-  transition: border-color 0.18s var(--ease-out), transform 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out), background-color 0.18s var(--ease-out);
+  transition: border-color 0.18s var(--ease-out), background-color 0.18s var(--ease-out);
 }
 
 .card:hover {
   border-color: var(--border-strong);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 .btn {
@@ -496,7 +461,7 @@ textarea:disabled {
   font-weight: 500;
   position: relative;
   overflow: hidden;
-  transition: color 0.18s var(--ease-out), background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), transform 0.2s var(--ease-snap), box-shadow 0.18s var(--ease-out);
+  transition: color 0.18s var(--ease-out), background-color 0.18s var(--ease-out), border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
 }
 
 .btn::after {
@@ -511,10 +476,6 @@ textarea:disabled {
 
 .btn:hover::after {
   opacity: 0.04;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
 }
 
 .btn:active {
@@ -1012,6 +973,8 @@ textarea:disabled {
 .badge-success { background-color: var(--success-light); color: var(--success); }
 .badge-danger { background-color: var(--error-light); color: var(--error); }
 .badge-warning { background-color: var(--warning-light); color: var(--warning); }
+.badge-info { background-color: var(--info-light); color: var(--info); }
+.badge-neutral { background-color: var(--bg-tertiary); color: var(--text-secondary); }
 
 /* Dashboard */
 .dashboard-page {
@@ -1357,16 +1320,6 @@ textarea:disabled {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes sidebarIn {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes navItemIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes panelRise {
@@ -2081,9 +2034,7 @@ textarea:disabled {
   left: 0;
   right: 0;
   z-index: 200;
-  background-color: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
   padding: 4px 0;
   padding-bottom: max(4px, env(safe-area-inset-bottom, 4px));
@@ -2122,7 +2073,6 @@ textarea:disabled {
 .bottom-nav-item svg {
   width: 20px;
   height: 20px;
-  transition: transform 0.2s var(--ease-snap);
 }
 
 .bottom-nav-item span {
