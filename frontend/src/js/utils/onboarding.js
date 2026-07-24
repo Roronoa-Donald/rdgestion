@@ -247,17 +247,25 @@ class GuidedOnboarding {
     window.addEventListener('rdg-localstorage', this.storageHandler);
 
     // Polling DOM pour suivre dynamiquement le followSelector (ex: modale qui s'ouvre)
-    this.pollTimer = setInterval(() => {
-      if (!this.active) return;
-      const step = this.steps[this.currentStepIndex];
-      if (!step || !step.followSelector) return;
-      const followTarget = this._querySelector(step.followSelector);
-      if (followTarget && followTarget !== this._lastFollowTarget) {
-        this._lastFollowTarget = followTarget;
-        this._positionSpotlight(followTarget);
-        this._placeTooltip(step.placement);
-      }
-    }, 300);
+        // ET pour détecter les conditions waitFor de type 'dom' (ex: ajout d'un article au panier)
+        this.pollTimer = setInterval(() => {
+          if (!this.active) return;
+          const step = this.steps[this.currentStepIndex];
+          if (!step) return;
+      
+          // Vérifier la complétion (notamment pour les waitFor de type 'dom')
+          this._checkCompletion();
+      
+          // Suivi du followSelector pour repositionner le spotlight
+          if (step.followSelector) {
+            const followTarget = this._querySelector(step.followSelector);
+            if (followTarget && followTarget !== this._lastFollowTarget) {
+              this._lastFollowTarget = followTarget;
+              this._positionSpotlight(followTarget);
+              this._placeTooltip(step.placement);
+            }
+          }
+        }, 300);
   }
 
   /**
