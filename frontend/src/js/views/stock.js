@@ -370,8 +370,8 @@ export class StockView {
           </div>
 
           <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="quick-stock-reason">Motif (optionnel)</label>
-            <input type="text" id="quick-stock-reason" class="form-input" placeholder="Ex: Réception commande, perte, inventaire..." style="font-size: 14px;">
+            <label class="form-label" for="quick-stock-reason">Motif</label>
+            <input type="text" id="quick-stock-reason" class="form-input" placeholder="Ex: Réception commande, perte, inventaire..." style="font-size: 14px;" required>
           </div>
         </div>
         <div class="modal-footer">
@@ -414,11 +414,15 @@ export class StockView {
         alertModal('Veuillez entrer une quantité valide.', { title: 'Validation' });
         return;
       }
+      if (!reason || reason.length < 3) {
+        alertModal('Veuillez saisir un motif (min. 3 caractères).', { title: 'Validation' });
+        return;
+      }
 
       const payload = {
-        type: type === 'in' ? 'IN' : type === 'out' ? 'OUT' : 'ADJUSTMENT',
+        movement_type: type === 'in' ? 'IN' : type === 'out' ? 'OUT' : 'ADJUSTMENT',
         quantity: qty,
-        reason: reason || undefined
+        reason
       };
 
       try {

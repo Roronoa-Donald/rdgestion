@@ -143,9 +143,7 @@ export class SettingsView {
       await this.loadVendors();
       this.bindVendorsTabEvents();
     } else if (this.activeTab === 'referrals') {
-      localStorage.setItem('rdg_setup_referral_seen', 'true');
-      notifyLocalStorageChange('rdg_setup_referral_seen');
-      container.innerHTML = this.renderReferralsTab();
+          container.innerHTML = this.renderReferralsTab();
       await this.loadReferrals();
       this.bindReferralsTabEvents();
     } else if (this.activeTab === 'subscription') {
@@ -632,15 +630,18 @@ export class SettingsView {
   }
 
   bindReferralsTabEvents() {
-    document.getElementById('btn-copy-code').addEventListener('click', () => {
-      const code = document.getElementById('ref-code-text').textContent;
-      navigator.clipboard.writeText(code).then(() => {
-        Toast.success('Code parrainage copié !');
-      }).catch(err => {
-        console.error(err);
+      document.getElementById('btn-copy-code').addEventListener('click', () => {
+        const code = document.getElementById('ref-code-text').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          Toast.success('Code parrainage copié !');
+          // Marquer l'étape onboarding comme vue (uniquement au clic réel)
+          localStorage.setItem('rdg_setup_referral_seen', 'true');
+          notifyLocalStorageChange('rdg_setup_referral_seen');
+        }).catch(err => {
+          console.error(err);
+        });
       });
-    });
-  }
+    }
 
   // ═══════════════════════════════════════════════════════════
   // Onglet Abonnement PRO
