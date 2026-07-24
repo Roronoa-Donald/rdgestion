@@ -1,3 +1,5 @@
+import { isGuidedOnboardingDone, guidedOnboardingActive, guidedOnboardingCurrentRoute } from './utils/onboarding.js';
+
 const DEBUG = false;
 function log(...args) { if (DEBUG) console.log(...args); }
 
@@ -6,7 +8,8 @@ export class Router {
     this.routes = routes;
     this.container = document.getElementById(containerId);
     this.currentView = null;
-    
+    this._onboardingGuard = false; // évite la ré-entrance du guard
+
     // Écouter le changement de hash
     window.addEventListener('hashchange', () => this.handleRouting());
   }
@@ -20,7 +23,7 @@ export class Router {
    */
   async handleRouting() {
     let hash = window.location.hash || '#/';
-    
+
     // Nettoyer les paramètres éventuels du hash (ex: #/products?id=123)
     const queryIndex = hash.indexOf('?');
     let queryParams = {};
@@ -37,6 +40,25 @@ export class Router {
     const token = localStorage.getItem('token');
     const userRaw = localStorage.getItem('user');
     const user = userRaw ? JSON.parse(userRaw) : null;
+
+    // ─── Onboarding guard : bloquer la navigation non-pertinente ───
+    // Quand l'onboarding guidé est actif et non terminé, on restreint les routes
+    // accessibles aux routes que l'onboarding doit parcourir.
+    // Les routes publiques (#/login, #/register) ne sont pas concernées.
+    const onboardingActive = guidedOnboardingActive() && !isGuidedOnboardingDone();
+    if (onboardingActive && token && hash !== '#/login' && hash !== '#/register') {
+      const allowedRoutes = ['#/dashboard', '#/products', '#/pos', '#/settings', '#/onboarding'];
+      const currentStepRoute = guidedOnboardingCurrentRoute();
+      if (!allowedRoutes.includes(hash) || (currentStepRoute && !hash.startsWith(currentStepRoute.split('?')[0]) && !allowedRoutes.includes(hash))) {
+        // Rediriger vers la route de l'étape courante de l'onboarding
+        if (currentStepRoute && !this._onboardingGuard) {
+          this._onboardingGuard = true;
+          window.location.hash = currentStepRoute;
+          this._onboardingGuard = false;
+          return;
+        }
+      }
+    }
 
     // Définir la redirection par défaut pour la racine
     if (hash === '#/') {

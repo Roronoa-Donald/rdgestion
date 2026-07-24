@@ -39,14 +39,15 @@
 }
 
 /* Le spotlight utilise 4 divs sombres autour de la zone éclairée
-   pour éviter les soucis de mask-image sur certains navigateurs mobile */
+   pour éviter les soucis de mask-image sur certains navigateurs mobile.
+   pointer-events: auto pour bloquer les clics en dehors du spotlight (onboarding bloquant). */
 .rdg-spotlight-shade {
   position: fixed;
   z-index: 9998;
   background: rgba(15, 17, 21, 0.55);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
-  pointer-events: none;
+  pointer-events: auto;
   transition: all 0.3s var(--ease-out);
 }
 

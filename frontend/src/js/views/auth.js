@@ -4,7 +4,8 @@ import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 const SETUP_KEYS = [
   'rdg_setup_dismissed',
   'rdg_setup_product_created',
-  'rdg_setup_referral_seen'
+  'rdg_setup_referral_seen',
+  'rdg_guided_onboarding_done'
 ];
 
 function resetSetupGuide() {
@@ -243,6 +244,20 @@ export class RegisterView {
           localStorage.setItem('user', JSON.stringify(res.user));
           resetSetupGuide();
           Toast.success('Boutique créée avec succès !');
+
+          // Comme pour le login, vérifier si l'utilisateur a besoin de configurer
+          // ses catégories de départ. Un nouveau compte n'a aucune catégorie.
+          if (res.user.role === 'ADMIN') {
+            try {
+              const categories = await API.categories.list();
+              if (!categories || categories.length <= 1) {
+                window.location.hash = '#/onboarding';
+                return;
+              }
+            } catch (e) {
+              console.error('Erreur verification onboarding categories :', e);
+            }
+          }
           window.location.hash = '#/dashboard';
         }, "Création de votre compte...");
       } catch (err) {

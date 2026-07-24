@@ -54,6 +54,31 @@ describe('SubscriptionsService', () => {
       const sub = await service.activatePro('tenant-1', 'MONTHLY', 'admin-1', '127.0.0.1', 'UA');
       expect(sub.tier).toBe('PRO');
     });
+
+    it('devrait activer PRO via FedaPay (sentinel system user → null, pas de SELECT user)', async () => {
+      // Quand c'est FedaPay qui déclenche l'activation, activatedByUserId = sentinel.
+      // Le code convertit le sentinel en null → pas de SELECT user dans la DB.
+      // La chaîne d'appels est donc : expire + insert sub + notif + audit + referral lookup.
+      const SYSTEM_SENTINEL = '00000000-0000-0000-0000-000000000000';
+      const mockClient = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [] }) // expire old subs
+          .mockResolvedValueOnce({ rows: [{ id: 'sub-fedapay', tier: 'PRO', billing_type: 'LIFETIME', status: 'ACTIVE' }] }) // insert new sub
+          .mockResolvedValueOnce({ rows: [] }) // notification
+          // PAS de mockResolvedValueOnce pour SELECT user — skipped car effectiveUserId = null
+          .mockResolvedValueOnce({ rows: [] }) // audit log (user_id = null)
+          .mockResolvedValueOnce({ rows: [] }) // referral lookup (none)
+      };
+      vi.spyOn(database, 'transaction').mockImplementationOnce(async (cb: any) => cb(mockClient));
+
+      const sub = await service.activatePro('tenant-1', 'LIFETIME', SYSTEM_SENTINEL, '127.0.0.1', 'UA', 'FEDAPAY');
+      expect(sub.tier).toBe('PRO');
+      expect(sub.billing_type).toBe('LIFETIME');
+      // Vérifier que le 4e appel (audit log) a bien reçu null comme user_id
+      // calls[3] = [sqlString, [tenantId, effectiveUserId(null), username, role, ...]]
+      const auditCall = mockClient.query.mock.calls[3] as [string, unknown[]];
+      expect(auditCall[1][1]).toBeNull(); // 2e param ($2) = user_id → null
+    });
   });
 
   describe('checkAndExpireSubscriptions', () => {

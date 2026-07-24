@@ -173,8 +173,13 @@ class GuidedOnboarding {
 
     this.hashHandler = () => {
       // Après un changement de route, on repositionne sur l'étape courante
-      // (la vue peut mettre un instant à se charger)
-      setTimeout(() => this._renderStep(), 350);
+      // (la vue peut mettre un instant à se charger).
+      // Mais d'abord vérifier si la route courante complète l'étape,
+      // pour éviter un re-render inutile avant l'avancement.
+      this._checkCompletion();
+      setTimeout(() => {
+        if (this.active) this._renderStep();
+      }, 350);
     };
     window.addEventListener('hashchange', this.hashHandler);
 
@@ -487,4 +492,14 @@ export function isGuidedOnboardingDone() {
  */
 export function guidedOnboardingActive() {
   return guidedOnboarding.active;
+}
+
+/**
+ * Retourne la route hash de l'étape courante de l'onboarding (ex: '#/products').
+ * Utilisé par le router pour empêcher la navigation en dehors des routes de l'onboarding.
+ */
+export function guidedOnboardingCurrentRoute() {
+  if (!guidedOnboarding.active) return null;
+  const step = guidedOnboarding.steps[guidedOnboarding.currentStepIndex];
+  return step?.route || null;
 }
