@@ -108,7 +108,6 @@ export class DashboardView {
         }
       }
     }
-    }
   }
 
   renderOnboardingWizard(stats, productDone, referralDone) {
