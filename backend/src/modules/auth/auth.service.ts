@@ -60,9 +60,10 @@ export class AuthService {
 
       // 5. Créer les paramètres par défaut
       await client.query(
-        `INSERT INTO settings (tenant_id) VALUES ($1)`,
-        [tenant.id]
-      );
+              `INSERT INTO settings (tenant_id, onboarding_completed, onboarding_step)
+               VALUES ($1, FALSE, 1)`,
+              [tenant.id]
+            );
 
       // 6. Gérer le parrainage si un code valide a été fourni
       if (input.referral_code) {
@@ -116,26 +117,35 @@ export class AuthService {
       );
 
       // Générer le token JWT
-      const jwtPayload: JwtPayload = {
-        userId: user.id,
-        tenantId: tenant.id,
-        role: user.role,
-        username: user.username
-      };
-      const token = signToken(jwtPayload);
+            const jwtPayload: JwtPayload = {
+              userId: user.id,
+              tenantId: tenant.id,
+              role: user.role,
+              username: user.username
+            };
+            const token = signToken(jwtPayload);
 
-      return {
-        tenantId: tenant.id,
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          tenant_id: tenant.id,
-          shop_name: tenant.name
-        }
-      };
-    });
+            // 8. Récupérer l'état d'onboarding depuis settings
+            const settingsRes = await client.query<{ onboarding_completed: boolean; onboarding_step: number }>(
+              `SELECT onboarding_completed, onboarding_step FROM settings WHERE tenant_id = $1`,
+              [tenant.id]
+            );
+            const onboarding = settingsRes.rows[0] || { onboarding_completed: false, onboarding_step: 1 };
+
+            return {
+              tenantId: tenant.id,
+              token,
+              user: {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                tenant_id: tenant.id,
+                shop_name: tenant.name,
+                onboarding_completed: onboarding.onboarding_completed,
+                onboarding_step: onboarding.onboarding_step
+              }
+            };
+          });
 
     // Semer les catégories par défaut selon les secteurs choisis à l'inscription
     await seedCategoriesForTenant(res.tenantId, input.sectors || []);
@@ -240,24 +250,33 @@ export class AuthService {
     );
 
     // 6. Signer le token JWT
-    const jwtPayload: JwtPayload = {
-      userId: user.id,
-      tenantId: user.tenant_id,
-      role: user.role,
-      username: user.username
-    };
-    const token = signToken(jwtPayload);
+        const jwtPayload: JwtPayload = {
+          userId: user.id,
+          tenantId: user.tenant_id,
+          role: user.role,
+          username: user.username
+        };
+        const token = signToken(jwtPayload);
 
-    return {
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        tenant_id: user.tenant_id,
-        shop_name: shopName
-      }
-    };
+        // 7. Récupérer l'état d'onboarding depuis settings
+        const settingsRes = await query<{ onboarding_completed: boolean; onboarding_step: number }>(
+          `SELECT onboarding_completed, onboarding_step FROM settings WHERE tenant_id = $1`,
+          [user.tenant_id]
+        );
+        const onboarding = settingsRes.rows[0] || { onboarding_completed: true, onboarding_step: 1 };
+
+        return {
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            tenant_id: user.tenant_id,
+            shop_name: shopName,
+            onboarding_completed: onboarding.onboarding_completed,
+            onboarding_step: onboarding.onboarding_step
+          }
+        };
   }
 
   /**

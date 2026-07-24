@@ -1,7 +1,7 @@
 import { API } from '../api.js';
 import { escapeHtml } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
-import { isGuidedOnboardingDone, guidedOnboardingActive } from '../utils/onboarding.js';
+import { isGuidedOnboardingDone, guidedOnboardingActive, guidedOnboarding } from '../utils/onboarding.js';
 
 const SETUP_DISMISSED_KEY = 'rdg_setup_dismissed';
 const SETUP_REFERRAL_SEEN_KEY = 'rdg_setup_referral_seen';
@@ -65,12 +65,18 @@ export class DashboardView {
         throw new Error('Réponse du tableau de bord invalide.');
       }
       
+      // Déclencher l'onboarding guidé si nécessaire (basé sur la BDD)
+      const userRaw = localStorage.getItem('user');
+      const user = userRaw ? JSON.parse(userRaw) : null;
+      if (user?.role === 'ADMIN' && !user.onboarding_completed) {
+        guidedOnboarding.start();
+      }
 
       const dismissed = localStorage.getItem(SETUP_DISMISSED_KEY) === 'true';
       const productDone = Number(stats.products.total) > 0 || localStorage.getItem(SETUP_PRODUCT_CREATED_KEY) === 'true';
       const referralDone = localStorage.getItem(SETUP_REFERRAL_SEEN_KEY) === 'true';
       const setupCompleted = productDone && referralDone;
-
+      
       // Si l'onboarding guidé (spotlight) est en cours ou déjà terminé,
       // on affiche directement le dashboard standard pour éviter le conflit visuel.
       const guidedDone = isGuidedOnboardingDone();
@@ -101,6 +107,7 @@ export class DashboardView {
           });
         }
       }
+    }
     }
     
   }

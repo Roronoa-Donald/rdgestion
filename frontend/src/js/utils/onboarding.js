@@ -5,6 +5,8 @@
  * Bloquant : l'utilisateur doit terminer les 4 étapes.
  * ========================================== */
 
+import { API } from '../api.js';
+
 const ONBOARDING_STORAGE_KEY = 'rdg_guided_onboarding_done';
 
 /**
@@ -103,12 +105,23 @@ class GuidedOnboarding {
    * Démarre l'onboarding guidé si pas déjà terminé.
    */
   start() {
+    const userRaw = localStorage.getItem('user');
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    
+    // Si l'onboarding est marqué comme terminé en BDD (reçu via le user object)
+    if (user?.onboarding_completed) {
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      return;
+    }
+
     if (localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true') return;
-    // Empêcher la double-initialisation : si l'onboarding est déjà actif,
-    // ne pas le redémarrer (les changements de hash le déclencheraient sinon plusieurs fois).
     if (this.active) return;
+    
     this.active = true;
-    this.currentStepIndex = 0;
+    // Reprendre à l'étape sauvegardée si présente
+    this.currentStepIndex = (user?.onboarding_step ? user.onboarding_step - 1 : 0);
+    if (this.currentStepIndex < 0) this.currentStepIndex = 0;
+    
     this._buildOverlay();
     this._attachListeners();
     this._renderStep();
@@ -117,9 +130,24 @@ class GuidedOnboarding {
   /**
    * Marque l'onboarding comme terminé et nettoie le DOM.
    */
-  finish() {
+  async finish() {
     localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
     this.active = false;
+    
+    // Persister en BDD
+    try {
+      await API.settings.update({ onboarding_completed: true });
+      // Mettre à jour le cache local du user
+      const userRaw = localStorage.getItem('user');
+      if (userRaw) {
+        const user = JSON.parse(userRaw);
+        user.onboarding_completed = true;
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+    } catch (err) {
+      console.error('Erreur sauvegarde completion onboarding :', err);
+    }
+    
     this._cleanup();
   }
 
@@ -275,6 +303,16 @@ class GuidedOnboarding {
     this.elements.ring.style.left = `${left}px`;
     this.elements.ring.style.width = `${width}px`;
     this.elements.ring.style.height = `${height}px`;
+
+    // CRITICAL FIX: Pour permettre l'interaction avec l'élément cible et ses enfants,
+    // on augmente son z-index temporairement pour qu'il passe au-dessus des shades.
+    const originalZIndex = target.style.zIndex;
+    target.style.zIndex = '10000';
+    target.style.position = 'relative';
+
+    // On stocke l'élément pour pouvoir rétablir son z-index plus tard
+    this._currentTarget = target;
+    this._originalZIndex = originalZIndex;
 
     // S'assurer que la cible est visible (scroll si hors viewport)
     if (rect.top < 80 || rect.bottom > window.innerHeight - 20) {
@@ -439,6 +477,12 @@ class GuidedOnboarding {
       window.removeEventListener('rdg-localstorage', this.storageHandler);
     }
     if (this.pollTimer) clearInterval(this.pollTimer);
+    
+    // Rétablir le z-index de la dernière cible
+    if (this._currentTarget) {
+      this._currentTarget.style.zIndex = this._originalZIndex || '';
+    }
+    
     this._removeOverlay();
   }
 

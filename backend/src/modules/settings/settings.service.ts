@@ -36,9 +36,11 @@ export class SettingsService {
       'theme'
     ];
     const allFields: (keyof Settings)[] = [
-      'global_stock_threshold',
-      'max_seller_discount_percentage'
-    ];
+          'global_stock_threshold',
+          'max_seller_discount_percentage',
+          'onboarding_completed',
+          'onboarding_step'
+        ];
 
     // Vérifier si des champs PRO_ONLY sont demandés et exiger l'abonnement PRO.
     const requestedProFields = proOnly.filter(f => data[f] !== undefined);

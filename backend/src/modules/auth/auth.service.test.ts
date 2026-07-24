@@ -90,10 +90,11 @@ describe('AuthService', () => {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ id: 'tenant-123', name: 'Test Shop' }] }) // insert tenant
           .mockResolvedValueOnce({ rows: [] }) // insert subscription
-          .mockResolvedValueOnce({ rows: [{ id: 'user-123', username: '+22890123456', role: 'ADMIN' }] }) // insert user
+          .mockResolvedValueOnce({ rows: [{ id: 'user-123', username: '+228****3456', role: 'ADMIN' }] }) // insert user
           .mockResolvedValueOnce({ rows: [] }) // insert settings
           .mockResolvedValueOnce({ rows: [] }) // audit log tenant
           .mockResolvedValueOnce({ rows: [] }) // audit log user
+          .mockResolvedValueOnce({ rows: [{ onboarding_completed: false, onboarding_step: 1 }] }) // select onboarding
       };
 
       vi.spyOn(database, 'transaction').mockImplementationOnce(async (cb: any) => {
@@ -105,7 +106,7 @@ describe('AuthService', () => {
       expect(result.token).toBe('mocked_jwt_token');
       expect(result.user.shop_name).toBe('Test Shop');
       expect(result.user.role).toBe('ADMIN');
-      expect(mockClient.query).toHaveBeenCalledTimes(6);
+      expect(mockClient.query).toHaveBeenCalledTimes(7);
       expect(seedCategoriesForTenant).toHaveBeenCalledWith('tenant-123', []);
     });
 
@@ -130,10 +131,11 @@ describe('AuthService', () => {
         query: vi.fn()
           .mockResolvedValueOnce({ rows: [{ id: 'tenant-123', name: 'Test Shop' }] }) // insert tenant
           .mockResolvedValueOnce({ rows: [] }) // insert subscription
-          .mockResolvedValueOnce({ rows: [{ id: 'user-123', username: '+22890123456', role: 'ADMIN' }] }) // insert user
+          .mockResolvedValueOnce({ rows: [{ id: 'user-123', username: '+228****3456', role: 'ADMIN' }] }) // insert user
           .mockResolvedValueOnce({ rows: [] }) // insert settings
           .mockResolvedValueOnce({ rows: [] }) // audit log tenant
           .mockResolvedValueOnce({ rows: [] }) // audit log user
+          .mockResolvedValueOnce({ rows: [{ onboarding_completed: false, onboarding_step: 1 }] }) // select onboarding
       };
 
       vi.spyOn(database, 'transaction').mockImplementationOnce(async (cb: any) => {
@@ -190,7 +192,7 @@ describe('AuthService', () => {
           rows: [{
             id: 'user-123',
             tenant_id: 'tenant-123',
-            username: '+22890123456',
+            username: '+228****3456',
             password_hash: 'hash',
             role: 'ADMIN',
             is_active: true
@@ -201,7 +203,10 @@ describe('AuthService', () => {
           rows: [{ name: 'Test Shop', is_active: true }]
         } as any) // Query 2: Select tenant info
         .mockResolvedValueOnce({ rows: [] } as any) // Query 3: Update last login info
-        .mockResolvedValueOnce({ rows: [] } as any); // Query 4: Audit log success
+        .mockResolvedValueOnce({ rows: [] } as any) // Query 4: Audit log success
+        .mockResolvedValueOnce({
+          rows: [{ onboarding_completed: false, onboarding_step: 1 }]
+        } as any); // Query 5: Select onboarding settings
 
       vi.spyOn(passwordUtils, 'verifyPassword').mockResolvedValueOnce(true);
 

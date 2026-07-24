@@ -78,14 +78,14 @@ export class LoginView {
 
           if (res.user.role === 'ADMIN') {
             try {
-              const categories = await API.categories.list();
-              if (categories.length <= 1) {
-                resetSetupGuide();
-                window.location.hash = '#/onboarding';
+              // L'onboarding guidé est maintenant piloté par la BDD via l'objet user
+              if (!res.user.onboarding_completed) {
+                window.location.hash = '#/dashboard';
+                // Le guidedOnboarding.start() sera appelé dans DashboardView ou app.js
                 return;
               }
             } catch (e) {
-              console.error('Erreur verification onboarding categories :', e);
+              console.error('Erreur verification onboarding :', e);
             }
             window.location.hash = '#/dashboard';
           } else if (res.user.role === 'SELLER') {
@@ -242,21 +242,11 @@ export class RegisterView {
           });
           localStorage.setItem('token', res.token);
           localStorage.setItem('user', JSON.stringify(res.user));
-          resetSetupGuide();
           Toast.success('Boutique créée avec succès !');
 
-          // Comme pour le login, vérifier si l'utilisateur a besoin de configurer
-          // ses catégories de départ. Un nouveau compte n'a aucune catégorie.
           if (res.user.role === 'ADMIN') {
-            try {
-              const categories = await API.categories.list();
-              if (!categories || categories.length <= 1) {
-                window.location.hash = '#/onboarding';
-                return;
-              }
-            } catch (e) {
-              console.error('Erreur verification onboarding categories :', e);
-            }
+            window.location.hash = '#/dashboard';
+            return;
           }
           window.location.hash = '#/dashboard';
         }, "Création de votre compte...");

@@ -240,6 +240,8 @@ export interface Settings {
   ticket_width: TicketWidth;
   ticket_show_qr: boolean;
   theme: Theme;
+  onboarding_completed: boolean;
+  onboarding_step: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -297,5 +299,7 @@ export interface AuthResponse {
     role: UserRole;
     tenant_id: string;
     shop_name: string;
+    onboarding_completed: boolean;
+    onboarding_step: number;
   };
 }
