@@ -1,5 +1,7 @@
 import { query } from '../../config/database';
 
+type PgPoolClient = import('pg').PoolClient;
+
 /**
  * Catégories par défaut par secteur d'activité, conformément à 03_Cahier_des_charges.md §3.1.4
  */
@@ -36,13 +38,23 @@ export const CATEGORIES_BY_SECTOR: Record<string, string[]> = {
 /**
  * Initialise les catégories par défaut pour un tenant spécifique en fonction de ses secteurs choisis.
  * La catégorie "Autres" est toujours ajoutée par défaut.
- * 
+ *
+ * Faille #12 — Si `client` est fourni ( PoolClient d'une transaction ouverte), on exécute
+ * les INSERT dans cette même transaction pour que les catégories soient commitées
+ * atomiquement avec le tenant/user/settings. Sinon (par sécurité, pour l'usage standalone),
+ * on retombe sur le helper `query()` global — mais l'appelant doit préférer passer le client.
+ *
  * @param tenantId ID du tenant
  * @param sectors Liste des secteurs cochés (onboarding)
+ * @param client Optionnel — PoolClient d'une transaction en cours (atomicité garantie)
  */
-export async function seedCategoriesForTenant(tenantId: string, sectors: string[]): Promise<void> {
+export async function seedCategoriesForTenant(
+  tenantId: string,
+  sectors: string[],
+  client?: PgPoolClient
+): Promise<void> {
   const categoriesToInsert = new Set<string>();
-  
+
   // Toujours ajouter la catégorie par défaut "Autres"
   categoriesToInsert.add('Autres');
 
@@ -54,12 +66,18 @@ export async function seedCategoriesForTenant(tenantId: string, sectors: string[
     }
   }
 
+  // Helper d'exécution : utilise le client de transaction si fourni,
+  // sinon retombe sur le pool global (pour les usages standalone hors transaction).
+  const exec = client
+    ? (text: string, params: any[]) => client.query(text, params)
+    : (text: string, params: any[]) => query(text, params);
+
   // Insérer en base de données de façon sécurisée (avec ON CONFLICT DO NOTHING)
   let sortOrder = 0;
   for (const categoryName of categoriesToInsert) {
     const isDefault = true; // Catégorie système prédéfinie
-    await query(
-      `INSERT INTO categories (tenant_id, name, is_default, sort_order) 
+    await exec(
+      `INSERT INTO categories (tenant_id, name, is_default, sort_order)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (tenant_id, name) DO NOTHING`,
       [tenantId, categoryName, isDefault, sortOrder++]

@@ -3,8 +3,12 @@ import { exportsController } from './exports.controller';
 import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
 import { checkTenantActive } from '../../middlewares/tenant';
+import { auditDecorator } from '../../middlewares/audit';
 
 export async function exportsRoutes(fastify: FastifyInstance) {
+  // Décorateur d'audit — expose request.logAudit() pour les logs d'activité
+  fastify.addHook('preHandler', auditDecorator);
+
   const preHandler = [authenticate, authorize(['ADMIN']), checkTenantActive];
 
   fastify.get('/products', {

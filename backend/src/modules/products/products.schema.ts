@@ -49,7 +49,8 @@ export const productBodySchema = {
     description: { type: ['string', 'null'], maxLength: 1000 },
     has_expiry: { type: 'boolean' },
     expiry_date: { type: ['string', 'null'], format: 'date' } // YYYY-MM-DD
-  }
+  },
+  additionalProperties: false
 };
 
 export const createProductSchema: FastifySchema = {

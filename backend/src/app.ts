@@ -117,8 +117,28 @@ fastify.register(async () => {
 });
 
 // 2. Enregistrer les plugins de sécurité et utilitaires généraux
+// Helmet — CSP et headers de sécurité.
+// On définit une CSP stricte adaptée à une API + frontend PWA servi par Fastify.
+// `defaultSrc 'self'`, scripts/styles/fonts depuis 'self' uniquement, images
+// autorisées en data: et https: (Cloudinary, avatars), objets et frames interdits.
+// HSTS activé pour forcer HTTPS en production (1 an, sous-domaines inclus).
 fastify.register(fastifyHelmet, {
-  contentSecurityPolicy: false, // Disable Helmet's CSP to rely on the meta tag in index.html
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  strictTransportSecurity: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+  },
 });
 fastify.register(registerCors);
 

@@ -132,6 +132,12 @@ export class AuthService {
             );
             const onboarding = settingsRes.rows[0] || { onboarding_completed: false, onboarding_step: 1 };
 
+            // Faille #12 — Semer les catégories par défaut DANS la transaction (avant COMMIT),
+            // pour garantir l'atomicité tenant + settings + catégories. Anciennement appelé
+            // APRÈS la transaction, ce qui laissait le tenant sans catégories si le process
+            // crashait entre le COMMIT et le seed.
+            await seedCategoriesForTenant(tenant.id, input.sectors || [], client);
+
             return {
               tenantId: tenant.id,
               token,
@@ -146,9 +152,6 @@ export class AuthService {
               }
             };
           });
-
-    // Semer les catégories par défaut selon les secteurs choisis à l'inscription
-    await seedCategoriesForTenant(res.tenantId, input.sectors || []);
 
     return {
       token: res.token,

@@ -47,7 +47,7 @@ export class Router {
     // Les routes publiques (#/login, #/register) ne sont pas concernées.
     const onboardingActive = guidedOnboardingActive() && !isGuidedOnboardingDone();
     if (onboardingActive && token && hash !== '#/login' && hash !== '#/register') {
-      const allowedRoutes = ['#/dashboard', '#/products', '#/pos', '#/settings', '#/onboarding'];
+      const allowedRoutes = ['#/dashboard', '#/products', '#/stock', '#/pos', '#/settings', '#/onboarding'];
       const currentStepRoute = guidedOnboardingCurrentRoute();
       if (!allowedRoutes.includes(hash) || (currentStepRoute && !hash.startsWith(currentStepRoute.split('?')[0]) && !allowedRoutes.includes(hash))) {
         // Rediriger vers la route de l'étape courante de l'onboarding

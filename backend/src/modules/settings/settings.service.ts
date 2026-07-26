@@ -1,6 +1,7 @@
 import { query, transaction } from '../../config/database';
 import { Settings } from '../../types/models';
 import { hashPassword, verifyPassword } from '../../utils/password';
+import { sanitizeForAudit } from '../../utils/audit-sanitizer';
 
 export class SettingsService {
   /**
@@ -96,10 +97,12 @@ export class SettingsService {
       const user = userRes.rows[0];
 
       // Log générique SETTINGS_UPDATE
+      // Faille H1 — on sanitise `changes` par sécurité même si les champs settings ne contiennent
+      // normalement pas de secrets, par défense en profondeur (évolution future possible des champs).
       await query(
         `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
          VALUES ($1, $2, $3, $4, 'SETTINGS_UPDATE', 'SETTINGS', $5, $6, $7, $8)`,
-        [tenantId, userId, user?.username || null, user?.role || null, current.id, JSON.stringify({ changes }), clientIp, userAgent]
+        [tenantId, userId, user?.username || null, user?.role || null, current.id, JSON.stringify(sanitizeForAudit({ changes })), clientIp, userAgent]
       );
 
       // Log spécifique TICKET_SETTINGS_UPDATE si des champs ticket_* ont été modifiés
@@ -113,7 +116,7 @@ export class SettingsService {
         await query(
           `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
            VALUES ($1, $2, $3, $4, 'TICKET_SETTINGS_UPDATE', 'SETTINGS', $5, $6, $7, $8)`,
-          [tenantId, userId, user?.username || null, user?.role || null, current.id, JSON.stringify({ changes: ticketChanges }), clientIp, userAgent]
+          [tenantId, userId, user?.username || null, user?.role || null, current.id, JSON.stringify(sanitizeForAudit({ changes: ticketChanges })), clientIp, userAgent]
         );
       }
     }
@@ -167,10 +170,14 @@ export class SettingsService {
 
     const userRes = await query<{ username: string; role: string }>('SELECT username, role FROM users WHERE id = $1', [userId]);
     const user = userRes.rows[0];
+    // Faille H1 — `data` provenant du client peut contenir des champs sensibles
+    // (password, new_password, old_password, token, etc.) si le contrôleur/l'appelant les y a laissés.
+    // On NE log JAMAIS `JSON.stringify(data)` directement : on sanitise d'abord via `sanitizeForAudit`
+    // qui masque toute clé sensible par '***' en préservant le shape JSON attendu par l'audit log.
     await query(
       `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
        VALUES ($1, $2, $3, $4, 'SETTINGS_UPDATE', 'TENANT', $1, $5, $6, $7)`,
-      [tenantId, userId, user?.username || null, user?.role || null, JSON.stringify(data), clientIp, userAgent]
+      [tenantId, userId, user?.username || null, user?.role || null, JSON.stringify(sanitizeForAudit(data)), clientIp, userAgent]
     );
 
     return this.getTenantProfile(tenantId);

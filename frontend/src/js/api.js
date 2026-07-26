@@ -1,5 +1,6 @@
 const BASE_URL = `${window.location.origin}/api`;
 import { LoadingIndicator } from './utils/ui.js';
+import { getCurrency } from './utils.js';
 
 function buildQuery(filters = {}) {
   const query = new URLSearchParams();
@@ -472,14 +473,14 @@ export const API = {
 
       // Générer le CSV
       const BOM = '\uFEFF'; // BOM pour qu'Excel reconnaisse l'UTF-8
-      const headers = ['Numéro', 'Date', 'Vendeur', 'Articles', 'Quantité', 'Total (FCFA)', 'Paiement', 'Statut'];
+      const headers = ['Numéro', 'Date', 'Vendeur', 'Articles', 'Quantité', `Total (${getCurrency()})`, 'Paiement', 'Statut'];
       const rows = allSales.map(s => {
         const items = (s.items || []).map(it => `${it.product_name || it.product_id} x${it.quantity}`).join('; ');
         const date = new Date(s.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         return [
-          s.sale_number || '',
+          s.transaction_number || '',
           date,
-          s.seller_username || '',
+          s.seller_name || '',
           items,
           (s.items || []).reduce((sum, it) => sum + (it.quantity || 0), 0),
           (s.total_amount || 0).toFixed(0),

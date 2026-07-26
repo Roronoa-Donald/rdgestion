@@ -4,6 +4,7 @@ import { PaymentResult } from './payment.service';
 import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
 import { checkTenantActive } from '../../middlewares/tenant';
+import { auditDecorator } from '../../middlewares/audit';
 import { subscriptionsService } from '../admin/admin.service';
 import { query } from '../../config/database';
 
@@ -18,6 +19,12 @@ import { query } from '../../config/database';
  *   tenant identifié dans le metadata du webhook.
  */
 export async function paymentsRoutes(fastify: FastifyInstance) {
+  // Décorateur d'audit — expose request.logAudit() pour les logs d'activité.
+  // NOTE : le hook global inclut aussi la route webhook publique, mais auditDecorator
+  // se contente d'attacher un helper request.logAudit (non appelé automatiquement),
+  // et ne plante pas si request.currentUser est absent (il dégrade en null).
+  fastify.addHook('preHandler', auditDecorator);
+
   // ─── Capturer le raw body pour la vérification webhook FedaPay ──
   // Webhook.constructEvent() a besoin du body brut (string) pour vérifier
   // la signature HMAC. Fastify parse le body en JSON par défaut, ce qui
@@ -85,6 +92,10 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
   fastify.post('/webhook/fedapay', {
     // Webhook FedaPay — on utilise le raw body capturé par le content type
     // parser ci-dessus pour vérifier la signature HMAC.
+    // Rate limit spécifique : 30 req/min par IP pour limiter l'abus/flood
+    // sur le endpoint public (au-delà, FedaPay ne devrait pas envoyer > 30
+    // webhooks/min légitimes pour un tenant).
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const signature = (request.headers['x-fedapay-signature'] as string) || '';
 
@@ -182,7 +193,10 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
         additionalProperties: false,
       },
     },
-    preHandler: [authenticate, authorize(['ADMIN'])],
+    config: {
+      rateLimit: { max: 20, timeWindow: '1 minute' }
+    },
+    preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive],
   }, async (request: FastifyRequest<any>, reply: FastifyReply) => {
     try {
       const { transaction_id } = request.body as { transaction_id: string };
@@ -201,7 +215,20 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
       // La transaction est approuvée — extraire les metadata
       const raw = (result.raw_payload || {}) as Record<string, unknown>;
       const metadata = (raw.custom_metadata || {}) as Record<string, unknown>;
+      const metadataTenantId = metadata.tenant_id as string | undefined;
       const billingType = (metadata.billing_type as 'MONTHLY' | 'LIFETIME') || 'MONTHLY';
+
+      // Sécurité : le tenant_id du metadata FedaPay doit correspondre au tenant
+      // de l'utilisateur authentifié (JWT). Empêche l'activation du PRO d'un autre
+      // tenant via la transaction d'un tiers.
+      if (metadataTenantId && metadataTenantId !== tenantId) {
+        console.error('❌ /verify : mismatch tenant_id metadata vs JWT', { metadataTenantId, tenantId });
+        return reply.status(403).send({
+          success: false,
+          error: 'TENANT_MISMATCH',
+          message: 'La transaction ne correspond pas à votre boutique.',
+        });
+      }
 
       // Idempotency check
       const existing = await query(

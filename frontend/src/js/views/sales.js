@@ -1,5 +1,5 @@
 import { API } from '../api.js';
-import { escapeAttr, escapeHtml } from '../utils.js';
+import { escapeAttr, escapeHtml, formatMoney, getCurrency } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 
@@ -171,9 +171,9 @@ export class SalesView {
         throw new Error('Réponse API invalide.');
       }
 
-      const data = res.data || res;
-      this.sales = Array.isArray(data?.sales) ? data.sales : [];
-      this.pagination = data?.pagination || {};
+      const data = res.data;
+      this.sales = data.sales;
+      this.pagination = data.pagination;
 
       document.getElementById('sales-pagination-text').textContent =
         `Affichage de ${this.sales.length} sur ${this.pagination.total || 0} vente(s)`;
@@ -210,7 +210,7 @@ export class SalesView {
             <td data-label="Mode Paiement">${methodLabel}</td>
             <td data-label="Sous-total">${fmtAmt(s.subtotal)}</td>
             <td data-label="Remise" style="color: var(--error);">${discountText}</td>
-            <td data-label="Net à Payer" style="font-weight: 700;">${fmtAmt(s.total_amount)} FCFA</td>
+            <td data-label="Net à Payer" style="font-weight: 700;">${formatMoney(s.total_amount)}</td>
             <td data-label="Statut" style="text-align: center;">${statusBadge}</td>
             <td data-label="Actions" style="text-align: right;">
               <button class="btn btn-secondary btn-detail" data-id="${escapeAttr(s.id)}" style="padding: 4px 8px; font-size: 11px;">Voir</button>
@@ -240,7 +240,7 @@ export class SalesView {
       return;
     }
 
-    const sale = raw?.data || raw;
+    const sale = raw.data;
 
     if (!sale || !sale.id) {
       alertModal('Données de vente invalides ou introuvables.', { title: 'Erreur' });
@@ -248,7 +248,7 @@ export class SalesView {
     }
 
     const container = document.getElementById('sales-modal-container');
-    const currency = 'FCFA';
+    const currency = getCurrency();
     const transactionNumber = escapeHtml(sale.transaction_number || 'N/A');
     const sellerName = escapeHtml(sale.seller_name || 'Inconnu');
     const momoReference = escapeHtml(sale.momo_reference || '');

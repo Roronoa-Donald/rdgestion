@@ -29,7 +29,7 @@ export class FedaPayPaymentService extends PaymentService {
       FedaPay.setApiKey(apiKey);
       FedaPay.setEnvironment(env.FEDAPAY_ENVIRONMENT || 'sandbox');
       this.configured = true;
-      console.log('💳 FedaPay configuré :', env.FEDAPAY_ENVIRONMENT, '(clé:', apiKey.substring(0, 8) + '...)');
+      console.log('💳 FedaPay configuré :', { environment: env.FEDAPAY_ENVIRONMENT, configured: true });
     } else {
       console.warn('⚠️  FedaPay non configuré — FEDAPAY_API_KEY manquante ou placeholder.');
     }
@@ -88,13 +88,59 @@ export class FedaPayPaymentService extends PaymentService {
     // Générer le token de paiement (URL de checkout)
     const token = await transaction.generateToken();
 
+    // Sécurité (H4 / H7) : valider que l'URL de checkout est bien en HTTPS
+    // ET que son hostname fait partie de l'allowlist FedaPay. Empêche :
+    //  - un détournement vers une URL HTTP non sécurisée (MITM / downgrade),
+    //  - un détournement vers un domaine tiers si l'API FedaPay était compromise.
+    const checkoutUrl = token.url as string;
+    if (!checkoutUrl || !/^https:\/\//i.test(checkoutUrl)) {
+      console.error(
+        '❌ FedaPay a renvoyé une checkout_url non HTTPS, refusée pour sécurité:',
+        checkoutUrl
+      );
+      const err = new Error(
+        "La checkout_url renvoyée par FedaPay n'est pas sécurisée (HTTPS requis). Paiement bloqué."
+      );
+      (err as any).statusCode = 502;
+      (err as any).code = 'INSECURE_CHECKOUT_URL';
+      throw err;
+    }
+
+    // Allowlist des hostnames FedaPay officiels (checkout.fedapay.com + *.fedapay.com).
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(checkoutUrl);
+    } catch {
+      const err = new Error(
+        "La checkout_url renvoyée par FedaPay est invalide (URL non parsable). Paiement bloqué."
+      );
+      (err as any).statusCode = 502;
+      (err as any).code = 'INVALID_CHECKOUT_URL';
+      throw err;
+    }
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const isAllowed =
+      hostname === 'checkout.fedapay.com' || hostname.endsWith('.fedapay.com');
+    if (!isAllowed) {
+      console.error(
+        '❌ FedaPay a renvoyé une checkout_url dont le hostname est hors allowlist, refusée pour sécurité:',
+        hostname
+      );
+      const err = new Error(
+        `La checkout_url renvoyée par FedaPay pointe vers un domaine non autorisé (${hostname}). Paiement bloqué.`
+      );
+      (err as any).statusCode = 502;
+      (err as any).code = 'UNTRUSTED_CHECKOUT_HOST';
+      throw err;
+    }
+
     return {
       id: String(transaction.id),
       amount: input.amount,
       currency,
       status: 'pending',
       reference: String(transaction.reference || transaction.id),
-      checkout_url: token.url,
+      checkout_url: checkoutUrl,
     };
   }
 

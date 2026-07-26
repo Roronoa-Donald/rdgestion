@@ -72,3 +72,25 @@ export const vendorUpdateSchema: FastifySchema = {
     additionalProperties: false
   }
 };
+
+/**
+ * Schéma de validation pour la mise à jour du profil de la boutique (tenant).
+ * PUT /api/settings/profile
+ */
+export const updateProfileSchema: FastifySchema = {
+  body: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 255 },
+      owner_name: { type: 'string', maxLength: 255 },
+      email: { type: 'string', format: 'email' },
+      address: { type: 'string', maxLength: 500 },
+      city: { type: 'string', maxLength: 255 },
+      country: { type: 'string', maxLength: 100 },
+      currency: { type: 'string', maxLength: 10 },
+      slogan: { type: 'string', maxLength: 255 },
+      tax_number: { type: 'string', maxLength: 100 }
+    }
+  }
+};

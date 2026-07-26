@@ -24,9 +24,11 @@ describe('SalesService', () => {
     };
 
     it('devrait refuser la vente si l abonnement est inactif', async () => {
+      // Faille H3 — désormais la requête filtre status='ACTIVE' ET end_date,
+      // donc un abonnement expiré n'est jamais renvoyé (rows: []).
       vi.spyOn(database, 'query').mockResolvedValueOnce({
-        rowCount: 1,
-        rows: [{ status: 'EXPIRED', tier: 'PRO' }]
+        rowCount: 0,
+        rows: []
       } as any);
 
       await expect(
@@ -155,7 +157,11 @@ describe('SalesService', () => {
 
   describe('cancelSale', () => {
     it('devrait renvoyer 404 si la vente n existe pas', async () => {
-      vi.spyOn(database, 'query').mockResolvedValueOnce({ rowCount: 0, rows: [] } as any);
+      // Faille H2 — cancelSale requête maintenant le rôle de l'utilisateur en 1re
+      // query (SELECT role FROM users WHERE id=...), puis le sale en 2e query.
+      vi.spyOn(database, 'query')
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ role: 'ADMIN' }] } as any) // select user role
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] } as any); // select sale (introuvable)
 
       await expect(
         service.cancelSale('tenant-1', 'sale-unknown', 'user-1', '127.0.0.1', 'UA')
@@ -163,10 +169,12 @@ describe('SalesService', () => {
     });
 
     it('devrait refuser l annulation d une vente déjà annulée', async () => {
-      vi.spyOn(database, 'query').mockResolvedValueOnce({
-        rowCount: 1,
-        rows: [{ id: 'sale-1', is_cancelled: true, transaction_number: 'VENTE-2026-0000001', created_at: new Date().toISOString() }]
-      } as any);
+      vi.spyOn(database, 'query')
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ role: 'ADMIN' }] } as any) // select user role
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ id: 'sale-1', is_cancelled: true, transaction_number: 'VENTE-2026-0000001', created_at: new Date().toISOString() }]
+        } as any); // select sale (déjà annulée)
 
       await expect(
         service.cancelSale('tenant-1', 'sale-1', 'user-1', '127.0.0.1', 'UA')

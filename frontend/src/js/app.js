@@ -9,7 +9,7 @@ import { LogsView } from './views/logs.js';
 import { SettingsView } from './views/settings.js';
 import { AdminView } from './views/admin.js';
 import { API } from './api.js';
-import { escapeHtml } from './utils.js';
+import { escapeHtml, initCurrency } from './utils.js';
 import { Toast, LoadingIndicator, confirmModal, alertModal } from './utils/ui.js';
 import { guidedOnboarding, isGuidedOnboardingDone } from './utils/onboarding.js';
 
@@ -286,6 +286,22 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initialiser les composants UX
   Toast.init();
   LoadingIndicator.init();
+
+  // Initialiser le cache de devise du tenant a partir du profil.
+  // Non-bloquant : en cas d echec, formatMoney/getCurrency retombent sur "FCFA".
+  // Le SuperAdmin n a pas de profil tenant (renvoie une erreur) -> on saute.
+  (async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    const userRaw = localStorage.getItem("user");
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    if (user?.role === "SUPERADMIN") return;
+    try {
+      const res = await API.settings.getProfile();
+      const profile = res?.data || res || {};
+      initCurrency({ currency: profile.currency });
+    } catch (_) { /* non-critique : fallback FCFA */ }
+  })();
 
   // Configurer le bouton de changement de thème
   const themeBtn = document.getElementById('theme-btn');

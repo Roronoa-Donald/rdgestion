@@ -11,6 +11,7 @@ export const createSaleSchema: FastifySchema = {
       items: {
         type: 'array',
         minItems: 1,
+        maxItems: 500,
         items: {
           type: 'object',
           required: ['product_id', 'quantity'],

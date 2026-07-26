@@ -73,13 +73,13 @@ export class LoginView {
       try {
         await withLoading(btn, async () => {
           const res = await API.auth.login({ identifier, password });
-          localStorage.setItem('token', res.token);
-          localStorage.setItem('user', JSON.stringify(res.user));
+          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
 
-          if (res.user.role === 'ADMIN') {
+          if (res.data.user.role === 'ADMIN') {
             try {
               // L'onboarding guidé est maintenant piloté par la BDD via l'objet user
-              if (!res.user.onboarding_completed) {
+              if (!res.data.user.onboarding_completed) {
                 window.location.hash = '#/dashboard';
                 // Le guidedOnboarding.start() sera appelé dans DashboardView ou app.js
                 return;
@@ -88,7 +88,7 @@ export class LoginView {
               console.error('Erreur verification onboarding :', e);
             }
             window.location.hash = '#/dashboard';
-          } else if (res.user.role === 'SELLER') {
+          } else if (res.data.user.role === 'SELLER') {
             window.location.hash = '#/pos';
           } else {
             window.location.hash = '#/admin';
@@ -240,11 +240,11 @@ export class RegisterView {
           const res = await API.auth.register({
             shop_name, owner_name, phone, password, password_confirm, referral_code, sectors
           });
-          localStorage.setItem('token', res.token);
-          localStorage.setItem('user', JSON.stringify(res.user));
+          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
           Toast.success('Boutique créée avec succès !');
 
-          if (res.user.role === 'ADMIN') {
+          if (res.data.user.role === 'ADMIN') {
             window.location.hash = '#/dashboard';
             return;
           }

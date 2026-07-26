@@ -3,8 +3,12 @@ import { logsController } from './logs.controller';
 import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
 import { checkTenantActive } from '../../middlewares/tenant';
+import { auditDecorator } from '../../middlewares/audit';
 
 export async function logsRoutes(fastify: FastifyInstance) {
+  // Décorateur d'audit — expose request.logAudit() pour les logs d'activité
+  fastify.addHook('preHandler', auditDecorator);
+
   fastify.get('/', {
     schema: {
       querystring: {

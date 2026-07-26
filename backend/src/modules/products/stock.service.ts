@@ -94,21 +94,30 @@ export class StockService {
       );
       const movement = movementRes.rows[0]!;
 
-      // 4. Log d'audit STOCK_ADJUSTMENT (au sens large : tout mouvement manuel)
+      // 4. Log d'audit — mapper movement_type vers l'action d'audit cohérente :
+      //   IN          → STOCK_INCREMENT
+      //   OUT         → STOCK_DECREMENT
+      //   ADJUSTMENT  → STOCK_ADJUSTMENT
       const userRes = await client.query<{ username: string; role: string }>(
         'SELECT username, role FROM users WHERE id = $1',
         [userId]
       );
       const user = userRes.rows[0];
+      const auditAction = movement_type === 'IN'
+        ? 'STOCK_INCREMENT'
+        : movement_type === 'OUT'
+          ? 'STOCK_DECREMENT'
+          : 'STOCK_ADJUSTMENT';
 
       await client.query(
         `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
-         VALUES ($1, $2, $3, $4, 'STOCK_ADJUSTMENT', 'PRODUCT', $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, 'PRODUCT', $6, $7, $8, $9)`,
         [
           tenantId,
           userId,
           user?.username || null,
           user?.role || null,
+          auditAction,
           product.id,
           JSON.stringify({
             movement_type,
@@ -212,18 +221,40 @@ export class StockService {
         ? `Le produit "${productName}" est en rupture de stock.`
         : `Le produit "${productName}" est sous le seuil d'alerte. Il ne reste plus que ${newStock} unités.`;
 
-      await client.query(
-        `INSERT INTO notifications (tenant_id, type, title, message, data)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT DO NOTHING`,
-        [
-          tenantId,
-          type,
-          title,
-          message,
-          JSON.stringify({ product_id: productId, stock_quantity: newStock, threshold: effectiveThreshold })
-        ]
-      );
+      // Faille C2 — On évite les doublons d'alertes en vérifiant d'abord si une notification
+      // du même type+product_id existe déjà pour ce tenant (is_resolved = FALSE).
+      // Le SELECT préalable évite des INSERT répétés : un INSERT "ON CONFLICT DO NOTHING"
+      // sans contrainte unique explicite proche du target documenté n'est pas fiable et accumule des doublons.
+      // On garde l'INSERT ordinaire (sans ON CONFLICT) après la vérification.
+      let alreadyExists = false;
+      try {
+        const existing = await client.query<{ id: string }>(
+          `SELECT id FROM notifications
+           WHERE tenant_id = $1 AND type = $2 AND data->>'product_id' = $3
+             AND (is_resolved = FALSE OR is_resolved IS NULL)
+           LIMIT 1`,
+          [tenantId, type, productId]
+        );
+        alreadyExists = existing.rows.length > 0;
+      } catch (err: any) {
+        // Faille C1 (colonne is_resolved potentiellement absente si migration 019 non encore appliquée sur une instance DB) :
+        // on dégrade en INSERT simple sans dédup, pas de ON CONFLICT. La déduplication sera réactivée après migration.
+        alreadyExists = false;
+      }
+
+      if (!alreadyExists) {
+        await client.query(
+          `INSERT INTO notifications (tenant_id, type, title, message, data)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            tenantId,
+            type,
+            title,
+            message,
+            JSON.stringify({ product_id: productId, stock_quantity: newStock, threshold: effectiveThreshold })
+          ]
+        );
+      }
     } else {
       // Stock remonté au-dessus du seuil : résoudre les alertes passées pour ce produit
       await client.query(

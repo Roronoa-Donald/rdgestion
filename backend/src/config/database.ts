@@ -21,8 +21,13 @@ export const pool = new Pool(poolConfig);
 
 // Gestion des erreurs du pool
 pool.on('error', (err: Error) => {
-  console.error('Erreur inattendue du pool PostgreSQL :', err.message);
-  process.exit(1);
+  console.error('❌ Erreur fatale du pool PostgreSQL :', err.message);
+  console.error('   Détails :', JSON.stringify({ code: (err as any).code, stack: err.stack }, null, 2));
+  // Sur Vercel (serverless), process.exit tue la fonction et provoque un échec du workflow.
+  // On log pour le diagnostic (Vercel récupère les logs via stdout) mais on ne force pas l'arrêt.
+  if (!process.env.VERCEL) {
+    process.exit(1);
+  }
 });
 
 // Fonction utilitaire pour exécuter une requête

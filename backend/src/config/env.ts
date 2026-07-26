@@ -78,7 +78,19 @@ export const env: EnvConfig = {
   DATABASE_URL: getEnvString('DATABASE_URL'),
   JWT_SECRET: (() => {
     const secret = getEnvString('JWT_SECRET');
-    if (secret.includes('change_moi') || secret.includes('change_me') || secret.length < 32) {
+    // Blacklist de placeholders courants qui passeraient autrement la validation
+    // de longueur. Ces valeurs proviennent des fichiers .env.example et doivent
+    // être remplacées par une vraie clé secrète générée aléatoirement.
+    const blacklistedPatterns = [
+      'change_moi',
+      'change_me',
+      'votre_secret',
+      'ultra_securise',
+    ];
+    const isPlaceholder = blacklistedPatterns.some((p) =>
+      secret.toLowerCase().includes(p.toLowerCase())
+    );
+    if (isPlaceholder || secret.length < 32) {
       const msg = `JWT_SECRET trop faible ou valeur placeholder détectée. Utilisez une clé secrète d'au moins 32 caractères (256 bits).`;
       if (process.env.NODE_ENV === 'production') {
         throw new Error(msg);
@@ -100,7 +112,16 @@ export const env: EnvConfig = {
   CLOUDINARY_API_SECRET: getEnvString('CLOUDINARY_API_SECRET', ''),
   SUPERADMIN_PHONE: getEnvString('SUPERADMIN_PHONE'),
   SUPERADMIN_PASSWORD: getEnvString('SUPERADMIN_PASSWORD'),
-  CRON_SECRET: getEnvString('CRON_SECRET', ''),
+  CRON_SECRET: (() => {
+    const secret = getEnvString('CRON_SECRET', '');
+    if (process.env.NODE_ENV === 'production' && secret.length < 16) {
+      throw new Error(
+        `CRON_SECRET invalide en production : longueur ${secret.length} (minimum 16 caractères requis). ` +
+        `Définissez une variable d'environnement CRON_SECRET d'au moins 16 caractères aléatoires.`
+      );
+    }
+    return secret;
+  })(),
   PAYMENT_PROVIDER: getEnvString('PAYMENT_PROVIDER', 'manual') as 'manual' | 'fedapay',
   FEDAPAY_ENVIRONMENT: getEnvString('FEDAPAY_ENVIRONMENT', 'sandbox') as 'sandbox' | 'live',
   FEDAPAY_API_KEY: getEnvString('FEDAPAY_API_KEY', ''),

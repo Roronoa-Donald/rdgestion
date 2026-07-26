@@ -107,7 +107,9 @@ describe('AuthService', () => {
       expect(result.user.shop_name).toBe('Test Shop');
       expect(result.user.role).toBe('ADMIN');
       expect(mockClient.query).toHaveBeenCalledTimes(7);
-      expect(seedCategoriesForTenant).toHaveBeenCalledWith('tenant-123', []);
+      // Faille #12 — seedCategoriesForTenant est désormais appelé DANS la transaction
+      // avec le client SQL en 3e argument pour garantir l'atomicité.
+      expect(seedCategoriesForTenant).toHaveBeenCalledWith('tenant-123', [], expect.anything());
     });
 
     it('devrait enregistrer une nouvelle boutique avec des secteurs d activité spécifiques et appeler le seed', async () => {
@@ -145,7 +147,9 @@ describe('AuthService', () => {
       const result = await authService.register(input, '127.0.0.1', 'Mozilla');
 
       expect(result.token).toBe('mocked_jwt_token');
-      expect(seedCategoriesForTenant).toHaveBeenCalledWith('tenant-123', ['Alimentation générale', 'Cosmétiques / Beauté']);
+      // Faille #12 — seedCategoriesForTenant est désormais appelé DANS la transaction
+      // avec le client SQL en 3e argument pour garantir l'atomicité.
+      expect(seedCategoriesForTenant).toHaveBeenCalledWith('tenant-123', ['Alimentation générale', 'Cosmétiques / Beauté'], expect.anything());
     });
   });
 

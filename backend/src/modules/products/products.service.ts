@@ -435,19 +435,41 @@ export class ProductsService {
         ? `Le produit "${product.name}" est en rupture de stock.`
         : `Le produit "${product.name}" est sous le seuil d'alerte. Il ne reste plus que ${product.stock_quantity} unités.`;
 
-      // Insérer la notification (user_id est NULL pour notifier tous les ADMIN du tenant)
-      await client.query(
-        `INSERT INTO notifications (tenant_id, type, title, message, data)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT DO NOTHING`, // Éviter les alertes dupliquées si besoin
-        [
-          tenantId,
-          type,
-          title,
-          message,
-          JSON.stringify({ product_id: product.id, stock_quantity: product.stock_quantity, threshold: effectiveThreshold })
-        ]
-      );
+      // Faille C2 — On évite les doublons d'alertes en vérifiant d'abord si une notification
+      // du même type+product_id existe déjà pour ce tenant (is_resolved = FALSE).
+      // Le SELECT préalable évite des INSERT répétés : un INSERT "ON CONFLICT DO NOTHING"
+      // sans contrainte unique explicite proche du target documenté n'est pas fiable et accumule des doublons.
+      // On garde l'INSERT ordinaire (sans ON CONFLICT) après la vérification.
+      let alreadyExists = false;
+      try {
+        const existing = await client.query<{ id: string }>(
+          `SELECT id FROM notifications
+           WHERE tenant_id = $1 AND type = $2 AND data->>'product_id' = $3
+             AND (is_resolved = FALSE OR is_resolved IS NULL)
+           LIMIT 1`,
+          [tenantId, type, product.id]
+        );
+        alreadyExists = existing.rows.length > 0;
+      } catch (err: any) {
+        // Faille C1 (colonne is_resolved potentiellement absente si migration 019 non encore appliquée sur une instance DB) :
+        // on dégrade en INSERT simple sans dédup, pas de ON CONFLICT. La déduplication sera réactivée après migration.
+        alreadyExists = false;
+      }
+
+      if (!alreadyExists) {
+        // Insérer la notification (user_id est NULL pour notifier tous les ADMIN du tenant)
+        await client.query(
+          `INSERT INTO notifications (tenant_id, type, title, message, data)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            tenantId,
+            type,
+            title,
+            message,
+            JSON.stringify({ product_id: product.id, stock_quantity: product.stock_quantity, threshold: effectiveThreshold })
+          ]
+        );
+      }
     }
   }
 }

@@ -14,7 +14,7 @@ export class AuthController {
     const userAgent = request.headers['user-agent'] || 'Unknown';
 
     const result = await authService.register(request.body, userIp, userAgent);
-    return reply.status(201).send(result);
+    return reply.status(201).send({ success: true, data: result });
   }
 
   /**
@@ -25,7 +25,7 @@ export class AuthController {
     const userAgent = request.headers['user-agent'] || 'Unknown';
 
     const result = await authService.login(request.body, userIp, userAgent);
-    return reply.send(result);
+    return reply.send({ success: true, data: result });
   }
 
   /**

@@ -29,15 +29,22 @@ export class SalesService {
    */
   async createSale(tenantId: string, sellerId: string, sellerRole: UserRole, input: CreateSaleInput, clientIp: string, userAgent: string): Promise<Sale & { items: any[] }> {
     // 1. Vérifier si l'abonnement du tenant est actif
+    // Faille H3 — on vérifie non seulement le status='ACTIVE' mais aussi que l'abonnement
+    // n'a pas expiré (end_date NULL = illimité, sinon doit être dans le futur). Un abonnement
+    // PRO dont le statut n'a pas encore été mis à jour par le cron d'expiration ne permet pas
+    // de vendre si sa end_date est dépassée.
     const subRes = await query<{ status: string; tier: string }>(
-      `SELECT status, tier FROM subscriptions 
-       WHERE tenant_id = $1 
-       ORDER BY start_date DESC LIMIT 1`,
+      `SELECT s.status, s.tier
+       FROM subscriptions s
+       WHERE s.tenant_id = $1
+         AND s.status = 'ACTIVE'
+         AND (s.end_date IS NULL OR s.end_date > NOW())
+       ORDER BY s.start_date DESC LIMIT 1`,
       [tenantId]
     );
     const subscription = subRes.rows[0];
 
-    if (!subscription || subscription.status !== 'ACTIVE') {
+    if (!subscription) {
       const err = new Error('Votre abonnement est inactif ou expiré.');
       (err as any).statusCode = 403;
       (err as any).code = 'SUBSCRIPTION_EXPIRED';
@@ -195,15 +202,21 @@ export class SalesService {
       }
 
       // 7. Générer un numéro de transaction unique et incrémental pour le tenant
+      // Faille H5 — race condition : deux ventes concurrentes peuvent calculer le même MAX+1
+      // et l'INSERT échoue avec erreur PostgreSQL 23505 (unique_violation).
+      // On wrappe la génération + l'INSERT dans une boucle de retry (max 3 tentatives)
+      // qui recalcule un nouveau numéro si la contrainte unique est violée.
       const year = new Date().getFullYear();
-      const seqRes = await client.query<{ next_val: string }>(
-        `SELECT COALESCE(MAX(SUBSTRING(transaction_number FROM 12)::integer), 0) + 1 as next_val 
-         FROM sales 
-         WHERE tenant_id = $1 AND transaction_number LIKE $2`,
-        [tenantId, `VENTE-${year}-%`]
-      );
-      const nextSequence = String(seqRes.rows[0]?.next_val ?? 1).padStart(7, '0');
-      const transactionNumber = `VENTE-${year}-${nextSequence}`;
+      const computeNextTransactionNumber = async (): Promise<string> => {
+        const seqRes = await client.query<{ next_val: string }>(
+          `SELECT COALESCE(MAX(SUBSTRING(transaction_number FROM 12)::integer), 0) + 1 as next_val
+           FROM sales
+           WHERE tenant_id = $1 AND transaction_number LIKE $2`,
+          [tenantId, `VENTE-${year}-%`]
+        );
+        const nextSequence = String(seqRes.rows[0]?.next_val ?? 1).padStart(7, '0');
+        return `VENTE-${year}-${nextSequence}`;
+      };
 
       // 8. Calculer le bénéfice estimé global
       let profitEstimate = 0;
@@ -216,7 +229,7 @@ export class SalesService {
       // Réduire du montant de la remise globale appliquée
       profitEstimate = Math.max(0, profitEstimate - discountAmount);
 
-      // 9. Créer la Vente
+      // 9. Créer la Vente (avec retry sur unique_violation 23505)
       const saleInsertQuery = `
         INSERT INTO sales (
           tenant_id, seller_id, transaction_number, payment_method, momo_reference,
@@ -227,22 +240,45 @@ export class SalesService {
         RETURNING *
       `;
 
-      const saleRes = await client.query<Sale>(saleInsertQuery, [
-        tenantId,
-        sellerId,
-        transactionNumber,
-        input.payment_method,
-        input.momo_reference || null,
-        subtotal,
-        discountAmount,
-        input.discount_type || null,
-        discountPercentage,
-        totalAmount,
-        profitEstimate,
-        input.amount_received || null,
-        changeGiven
-      ]);
-      const sale = saleRes.rows[0]!;
+      let sale: Sale | null = null;
+      let lastError: unknown = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const transactionNumber = await computeNextTransactionNumber();
+        try {
+          const saleRes = await client.query<Sale>(saleInsertQuery, [
+            tenantId,
+            sellerId,
+            transactionNumber,
+            input.payment_method,
+            input.momo_reference || null,
+            subtotal,
+            discountAmount,
+            input.discount_type || null,
+            discountPercentage,
+            totalAmount,
+            profitEstimate,
+            input.amount_received || null,
+            changeGiven
+          ]);
+          sale = saleRes.rows[0]!;
+          break; // INSERT réussi → on sort de la boucle de retry
+        } catch (err: any) {
+          lastError = err;
+          // Code PostgreSQL 23505 = unique_violation (collision sur transaction_number)
+          // Si ce n'est pas une 23505, on ne retente pas — on propage l'erreur.
+          if (err?.code !== '23505') {
+            throw err;
+          }
+          // Sinon on retry avec un nouveau numéro (tentative suivante)
+        }
+      }
+
+      if (!sale) {
+        // Toutes les tentatives ont échoué sur 23505 — on propage la dernière erreur.
+        throw lastError instanceof Error
+          ? lastError
+          : new Error('Échec de la création de la vente après 3 tentatives (collision numéro de transaction).');
+      }
 
       // 10. Insérer les lignes d'articles vendus (sale_items) + Mettre à jour les stocks
       const saleItems: any[] = [];
@@ -335,18 +371,40 @@ export class SalesService {
             ? `Le produit "${p.name}" est en rupture de stock.`
             : `Le produit "${p.name}" est sous le seuil d'alerte. Il ne reste plus que ${newStock} unités.`;
 
-          await client.query(
-            `INSERT INTO notifications (tenant_id, type, title, message, data)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT DO NOTHING`,
-            [
-              tenantId,
-              alertType,
-              alertTitle,
-              alertMessage,
-              JSON.stringify({ product_id: p.id, stock_quantity: newStock, threshold: effectiveThreshold })
-            ]
-          );
+          // Faille C2 — On évite les doublons d'alertes en vérifiant d'abord si une notification
+          // du même type+product_id existe déjà pour ce tenant (is_resolved = FALSE).
+          // Le SELECT préalable évite des INSERT répétés : un INSERT "ON CONFLICT DO NOTHING"
+          // sans contrainte unique explicite proche du target documenté n'est pas fiable et accumule des doublons.
+          // On garde l'INSERT ordinaire (sans ON CONFLICT) après la vérification.
+          let alertAlreadyExists = false;
+          try {
+            const existingAlert = await client.query<{ id: string }>(
+              `SELECT id FROM notifications
+               WHERE tenant_id = $1 AND type = $2 AND data->>'product_id' = $3
+                 AND (is_resolved = FALSE OR is_resolved IS NULL)
+               LIMIT 1`,
+              [tenantId, alertType, p.id]
+            );
+            alertAlreadyExists = existingAlert.rows.length > 0;
+          } catch (err: any) {
+            // Faille C1 (colonne is_resolved potentiellement absente si migration 019 non encore appliquée sur une instance DB) :
+            // on dégrade en INSERT simple sans dédup, pas de ON CONFLICT. La déduplication sera réactivée après migration.
+            alertAlreadyExists = false;
+          }
+
+          if (!alertAlreadyExists) {
+            await client.query(
+              `INSERT INTO notifications (tenant_id, type, title, message, data)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [
+                tenantId,
+                alertType,
+                alertTitle,
+                alertMessage,
+                JSON.stringify({ product_id: p.id, stock_quantity: newStock, threshold: effectiveThreshold })
+              ]
+            );
+          }
         }
       }
 
@@ -403,9 +461,29 @@ export class SalesService {
 
   /**
    * Annule une vente existante (recrédite les stocks).
+   * Faille H2 — un SELLER ne peut annuler que SES PROPRES ventes.
+   * L'ADMIN peut annuler toutes les ventes du tenant.
    */
   async cancelSale(tenantId: string, saleId: string, userId: string, clientIp: string, userAgent: string): Promise<void> {
-    const saleRes = await query<Sale>('SELECT * FROM sales WHERE tenant_id = $1 AND id = $2', [tenantId, saleId]);
+    // Récupérer le rôle de l'utilisateur qui annule (depuis la DB pour ne pas
+    // dépendre du controller et éviter qu'un SELLER ne truque la restriction).
+    const userRes = await query<{ role: string }>(
+      'SELECT role FROM users WHERE id = $1 AND tenant_id = $2',
+      [userId, tenantId]
+    );
+    const userRole = userRes.rows[0]?.role;
+
+    // Si SELLER, on restreint l'annulation à ses propres ventes uniquement.
+    // L'ADMIN (et au-delà) peut annuler toutes les ventes du tenant.
+    let saleRes: { rows: Sale[] };
+    if (userRole === 'SELLER') {
+      saleRes = await query<Sale>(
+        'SELECT * FROM sales WHERE tenant_id = $1 AND id = $2 AND seller_id = $3',
+        [tenantId, saleId, userId]
+      );
+    } else {
+      saleRes = await query<Sale>('SELECT * FROM sales WHERE tenant_id = $1 AND id = $2', [tenantId, saleId]);
+    }
     const sale = saleRes.rows[0];
 
     if (!sale) {

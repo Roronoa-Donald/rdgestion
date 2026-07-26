@@ -3,8 +3,42 @@ import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { PassThrough } from 'stream';
 
+/**
+ * Faille M4 — Gate PRO sur exports.
+ * Vérifie que l'abonnement ACTIF du tenant est de tier PRO et non expiré.
+ * Si ce n'est pas le cas, lève une erreur 403 `PRO_REQUIRED` qui remonte au controller.
+ * (On place le gate dans le service plutôt que dans la route/controller pour garantir
+ * que tout appel — route API ou usage interne — soit protégé de façon cohérente.)
+ *
+ * On réutilise la même logique que `sales.service.ts` : un PRO dont le statut n'a pas
+ * encore été mis à jour par le cron ne doit pas pouvoir exporter si sa `end_date` est
+ * dépassée. On check donc à la fois `status='ACTIVE'` et `(end_date IS NULL OR > NOW())`.
+ */
+async function assertProSubscription(tenantId: string): Promise<void> {
+  const subRes = await query<{ tier: string }>(
+    `SELECT s.tier
+     FROM subscriptions s
+     WHERE s.tenant_id = $1
+       AND s.status = 'ACTIVE'
+       AND (s.end_date IS NULL OR s.end_date > NOW())
+     ORDER BY s.start_date DESC LIMIT 1`,
+    [tenantId]
+  );
+  if (subRes.rows[0]?.tier !== 'PRO') {
+    const err = new Error(
+      'Les exports nécessitent un abonnement PRO actif. Passez au plan PRO pour activer cette fonctionnalité.'
+    );
+    (err as any).statusCode = 403;
+    (err as any).code = 'PRO_REQUIRED';
+    throw err;
+  }
+}
+
 export const exportsService = {
   async exportProducts(tenantId: string, format: 'xlsx' | 'pdf') {
+    // Gate PRO — un tenant FREE n'a pas accès aux exports
+    await assertProSubscription(tenantId);
+
     const productsRes = await query(
       `SELECT p.id, p.name, p.sku, c.name AS category, p.purchase_price, p.sell_price, 
               p.stock_quantity, p.stock_threshold, p.expiry_date, p.is_deleted
@@ -23,6 +57,9 @@ export const exportsService = {
   },
 
   async exportSales(tenantId: string, format: 'xlsx' | 'pdf', from?: string, to?: string) {
+    // Gate PRO — un tenant FREE n'a pas accès aux exports
+    await assertProSubscription(tenantId);
+
     const params: any[] = [tenantId];
     let dateFilter = '';
     let paramIdx = 1;
@@ -54,6 +91,9 @@ export const exportsService = {
   },
 
   async exportDailyReport(tenantId: string, format: 'xlsx' | 'pdf', date: string) {
+    // Gate PRO — un tenant FREE n'a pas accès aux exports
+    await assertProSubscription(tenantId);
+
     const statsRes = await query(
       `SELECT 
          COUNT(*) FILTER (WHERE NOT is_cancelled) AS sales_count,

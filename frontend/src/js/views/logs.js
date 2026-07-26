@@ -140,8 +140,8 @@ export class LogsView {
         action: this.filters.action || undefined
       });
 
-      this.logs = res.logs;
-      this.pagination = res.pagination;
+      this.logs = res.data.logs;
+      this.pagination = res.data.pagination;
 
       document.getElementById('logs-pagination-text').textContent = 
         `Affichage de ${this.logs.length} sur ${this.pagination.total} entrée(s) de logs`;

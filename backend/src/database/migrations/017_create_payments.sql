@@ -26,13 +26,13 @@ CREATE UNIQUE INDEX idx_payments_event_id ON payments(event_id) WHERE event_id I
 -- Index pour la recherche par transaction FedaPay
 CREATE INDEX idx_payments_transaction_id ON payments(transaction_id);
 
--- Trigger updated_at automatique (si la fonction existe)
+-- Trigger updated_at automatique (la fonction update_updated_at() est créée par la migration 013)
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column') THEN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at') THEN
     CREATE TRIGGER trg_payments_updated_at
       BEFORE UPDATE ON payments
       FOR EACH ROW
-      EXECUTE FUNCTION update_updated_at_column();
+      EXECUTE FUNCTION update_updated_at();
   END IF;
 END $$;

@@ -9,14 +9,24 @@ vi.mock('../../config/database', () => ({
 
 describe('exportsService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // restoreAllMocks (et non clearAllMocks) restaure les méthodes espionnées via
+    // vi.spyOn vers leur implémentation originale. Sans cela, un spy + mockResolvedValueOnce
+    // qui n'est jamais consommé persisterait et intercepterait les appels des tests
+    // suivants (ex: generateProductsPDF renverrait 'pdf-bytes' au lieu du vrai PDF
+    // — régression silencieuse sur les assertions %PDF-). vi.mock (échelle module)
+    // n'est pas affecté par restoreAllMocks.
+    vi.restoreAllMocks();
   });
 
   describe('exportProducts', () => {
     it('devrait appeler generateProductsXLSX pour format=xlsx', async () => {
-      vi.spyOn(database, 'query').mockResolvedValueOnce({
-        rows: [{ id: 'p1', name: 'Doliprane', sku: 'SKU', category: 'Med', purchase_price: 100, sell_price: 200, stock_quantity: 10, stock_threshold: 5, expiry_date: null, is_deleted: false }]
-      } as any);
+      // Faille M4 — désormais exportProducts appelle assertProSubscription en 1re query.
+      // On mocke une souscription PRO active en 1re query, puis les produits en 2e.
+      vi.spyOn(database, 'query')
+        .mockResolvedValueOnce({ rows: [{ tier: 'PRO' }] } as any) // gate PRO
+        .mockResolvedValueOnce({
+          rows: [{ id: 'p1', name: 'Doliprane', sku: 'SKU', category: 'Med', purchase_price: 100, sell_price: 200, stock_quantity: 10, stock_threshold: 5, expiry_date: null, is_deleted: false }]
+        } as any); // select products
 
       const generateSpy = vi.spyOn(exportsService, 'generateProductsXLSX').mockResolvedValueOnce(Buffer.from('xlsx-bytes'));
 
@@ -26,7 +36,9 @@ describe('exportsService', () => {
     });
 
     it('devrait appeler generateProductsPDF pour format=pdf', async () => {
-      vi.spyOn(database, 'query').mockResolvedValueOnce({ rows: [{ id: 'p1', name: 'Doliprane' }] } as any);
+      vi.spyOn(database, 'query')
+        .mockResolvedValueOnce({ rows: [{ tier: 'PRO' }] } as any) // gate PRO
+        .mockResolvedValueOnce({ rows: [{ id: 'p1', name: 'Doliprane' }] } as any); // select products
       const generateSpy = vi.spyOn(exportsService, 'generateProductsPDF').mockResolvedValueOnce(Buffer.from('pdf-bytes'));
 
       const result = await exportsService.exportProducts('tenant-1', 'pdf');
@@ -37,9 +49,11 @@ describe('exportsService', () => {
 
   describe('exportSales', () => {
     it('devrait appliquer les filtres de période et appeler le bon générateur', async () => {
-      vi.spyOn(database, 'query').mockResolvedValueOnce({
-        rows: [{ id: 's1', transaction_number: 'VENTE-2026-0000001', created_at: new Date(), total_amount: 1000, payment_method: 'CASH', is_cancelled: false, seller_name: 'Alice' }]
-      } as any);
+      vi.spyOn(database, 'query')
+        .mockResolvedValueOnce({ rows: [{ tier: 'PRO' }] } as any) // gate PRO
+        .mockResolvedValueOnce({
+          rows: [{ id: 's1', transaction_number: 'VENTE-2026-0000001', created_at: new Date(), total_amount: 1000, payment_method: 'CASH', is_cancelled: false, seller_name: 'Alice' }]
+        } as any); // select sales
 
       const generateXlsx = vi.spyOn(exportsService, 'generateSalesXLSX').mockResolvedValueOnce(Buffer.from('xlsx'));
 
@@ -51,8 +65,9 @@ describe('exportsService', () => {
   describe('exportDailyReport', () => {
     it('devrait générer un rapport quotidien PDF', async () => {
       vi.spyOn(database, 'query')
-        .mockResolvedValueOnce({ rows: [{ sales_count: 10, revenue: 50000, profit: 20000, cancelled_count: 1, cash_count: 7, momo_count: 3 }] } as any)
-        .mockResolvedValueOnce({ rows: [{ name: 'Doliprane', qty_sold: 5, revenue: 2500 }] } as any);
+        .mockResolvedValueOnce({ rows: [{ tier: 'PRO' }] } as any) // gate PRO
+        .mockResolvedValueOnce({ rows: [{ sales_count: 10, revenue: 50000, profit: 20000, cancelled_count: 1, cash_count: 7, momo_count: 3 }] } as any) // stats
+        .mockResolvedValueOnce({ rows: [{ name: 'Doliprane', qty_sold: 5, revenue: 2500 }] } as any); // top products
 
       const generatePdf = vi.spyOn(exportsService, 'generateDailyReportPDF').mockResolvedValueOnce(Buffer.from('pdf'));
 

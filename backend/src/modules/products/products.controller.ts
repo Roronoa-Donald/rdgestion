@@ -18,7 +18,7 @@ export class ProductsController {
   async list(request: FastifyRequest<{ Querystring: ProductQueryFilters }>, reply: FastifyReply) {
     const tenantId = request.currentUser!.tenantId;
     const result = await productsService.listProducts(tenantId, request.query);
-    return reply.send(result);
+    return reply.send({ success: true, data: result });
   }
 
   /**

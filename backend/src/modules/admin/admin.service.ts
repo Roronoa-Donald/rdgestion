@@ -404,7 +404,7 @@ export class AdminService {
       throw err;
     }
 
-    const action = isActive ? 'USER_ENABLED' : 'USER_DISABLED';
+    const action = isActive ? 'TENANT_ENABLED' : 'TENANT_DISABLED';
     const adminRes = await query<{ username: string }>('SELECT username FROM users WHERE id = $1', [adminId]);
     await query(
       `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)

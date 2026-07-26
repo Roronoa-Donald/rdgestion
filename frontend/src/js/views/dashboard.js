@@ -1,5 +1,5 @@
 import { API } from '../api.js';
-import { escapeHtml } from '../utils.js';
+import { escapeHtml, getCurrency, formatMoney } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 import { isGuidedOnboardingDone, guidedOnboardingActive, guidedOnboarding } from '../utils/onboarding.js';
 
@@ -218,7 +218,7 @@ export class DashboardView {
   }
 
   renderStandardDashboard(stats) {
-    const currency = 'FCFA';
+    const currency = getCurrency();
     this.currentPeriod = 'daily';
     this.chartData = stats.chart_data || { daily: [], weekly: [], monthly: [], yearly: [] };
     
@@ -489,7 +489,7 @@ export class DashboardView {
         <g class="category-bar-group">
           <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" 
                 fill="var(--accent-color)" rx="3">
-            <title>${escapeHtml(c.category_name)}: ${Number(c.total_revenue).toLocaleString()} FCFA</title>
+            <title>${escapeHtml(c.category_name)}: ${formatMoney(c.total_revenue, currency)}</title>
           </rect>
           <text x="${x + barWidth/2}" y="${chartHeight + padding.top + 15}" 
                 font-size="8" fill="var(--text-secondary)" text-anchor="middle">

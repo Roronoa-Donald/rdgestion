@@ -160,7 +160,12 @@ class GuidedOnboarding {
   async finish() {
     localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
     this.active = false;
-    
+
+    // Nettoyer les clés localStorage temporaires de progression de l'onboarding
+    localStorage.removeItem('rdg_setup_product_created');
+    localStorage.removeItem('rdg_setup_sale_validated');
+    localStorage.removeItem('rdg_setup_referral_seen');
+
     // Persister en BDD
     try {
       await API.settings.update({ onboarding_completed: true });
@@ -174,7 +179,7 @@ class GuidedOnboarding {
     } catch (err) {
       console.error('Erreur sauvegarde completion onboarding :', err);
     }
-    
+
     this._cleanup();
   }
 
@@ -556,6 +561,14 @@ class GuidedOnboarding {
       this._log('_advance de l\'étape', this.currentStepIndex, this.steps[this.currentStepIndex]?.id, '→', this.currentStepIndex + 1);
       this.currentStepIndex++;
       this._lastFollowTarget = null;
+
+      // Persister la progression de l'onboarding en BDD (non bloquant)
+      const nextStepNumber = this.currentStepIndex + 1;
+      if (nextStepNumber <= this.steps.length) {
+        API.settings.update({ onboarding_step: nextStepNumber }).catch((err) => {
+          console.error('[ONBOARDING]Erreur persistance onboarding_step :', err);
+        });
+      }
       if (this.currentStepIndex >= this.steps.length) {
         this._log('_advance: FIN — toutes les étapes complétées');
         this.finish();
@@ -617,7 +630,7 @@ class GuidedOnboarding {
       .replace(/&/g, '&')
       .replace(/</g, '<')
       .replace(/>/g, '>')
-      .replace(/"/g, '"')
+      .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
 }

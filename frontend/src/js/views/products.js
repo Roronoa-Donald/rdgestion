@@ -139,7 +139,7 @@ export class ProductsView {
    */
   async loadCategories() {
     try {
-      this.categories = await API.categories.list();
+      this.categories = (await API.categories.list()).data;
       const filter = document.getElementById('prod-cat-filter');
       // Conserver l'option vide
       filter.innerHTML = '<option value="">Toutes catégories</option>' + 
@@ -157,21 +157,22 @@ export class ProductsView {
     tableBody.innerHTML = Skeletons.table(9, 5);
 
     try {
-      let data;
+      let payload;
       if (this.showTrash) {
         const res = await API.products.listTrash();
-        data = { products: res.data, pagination: { page: 1, limit: 100, total: res.data.length, pages: 1 } };
+        payload = { products: res.data, pagination: { page: 1, limit: 100, total: res.data.length, pages: 1 } };
       } else {
-        data = await API.products.list({
+        const res = await API.products.list({
           page: this.currentPage,
           limit: 15,
           search: this.searchQuery || undefined,
           category_id: this.currentCategory || undefined
         });
+        payload = res.data;
       }
 
-      this.products = data.products;
-      this.pagination = data.pagination;
+      this.products = payload.products;
+      this.pagination = payload.pagination;
 
       // Mettre à jour le statut pagination
       document.getElementById('pagination-text').textContent = 

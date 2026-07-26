@@ -36,7 +36,7 @@ export const referralsController = new ReferralsController();
 export class AdminController {
   async listTenants(request: FastifyRequest<{ Querystring: any }>, reply: FastifyReply) {
     const result = await adminService.listTenants(request.query as any);
-    return reply.send(result);
+    return reply.send({ success: true, data: result });
   }
 
   async toggleTenantStatus(request: FastifyRequest<{ Params: { id: string }; Body: { is_active: boolean } }>, reply: FastifyReply) {

@@ -1,5 +1,5 @@
 import { API } from '../api.js';
-import { escapeHtml, escapeAttr } from '../utils.js';
+import { escapeHtml, escapeAttr, initCurrency } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupTablist, setupDialog } from '../utils/aria.js';
 import { notifyLocalStorageChange } from '../utils/onboarding.js';
@@ -120,6 +120,7 @@ export class SettingsView {
     try {
       this.settings = (await API.settings.get()).data;
       this.profile = (await API.settings.getProfile()).data;
+      initCurrency({ currency: this.profile?.currency });
       this.subscription = (await API.admin.getSubscription()).data || {};
     } catch (e) {
       console.error(e);
@@ -290,6 +291,7 @@ export class SettingsView {
       };
       try {
         this.profile = (await API.settings.updateProfile(payload)).data;
+        initCurrency({ currency: this.profile?.currency });
         alertModal('Profil de la boutique mis à jour avec succès.', { title: 'Profil' });
       } catch (err) {
         alertModal(err.message, { title: 'Erreur' });

@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import crypto from 'crypto';
 import { subscriptionsController, referralsController, adminController } from './admin.controller';
 import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
@@ -22,7 +23,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
       params: {
         type: 'object',
         required: ['tenantId'],
-        properties: { tenantId: { type: 'string' } },
+        properties: {
+          tenantId: {
+            type: 'string',
+            pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          }
+        },
         additionalProperties: false
       },
       body: {
@@ -65,7 +71,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
       params: {
         type: 'object',
         required: ['id'],
-        properties: { id: { type: 'string' } },
+        properties: {
+          id: {
+            type: 'string',
+            pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          }
+        },
         additionalProperties: false
       },
       body: {
@@ -89,7 +100,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
       params: {
         type: 'object',
         required: ['id'],
-        properties: { id: { type: 'string' } },
+        properties: {
+          id: {
+            type: 'string',
+            pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          }
+        },
         additionalProperties: false
       }
     },
@@ -106,7 +122,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     // En dev / fallback vide : autoriser même sans secret
     if (expected === '' && env.NODE_ENV === 'development') {
       // autorisé
-    } else if (provided !== expected) {
+    } else if (!constantTimeEquals(provided, expected)) {
       return reply.status(401).send({
         success: false,
         error: 'UNAUTHORIZED',
@@ -126,4 +142,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
       });
     }
   });
+}
+
+/**
+ * Comparaison de chaînes en temps constant (résistance au timing attack).
+ * Retourne `false` si les longueurs diffèrent sans déclencher d'exception
+ * (timingSafeEqual lève si les Buffer ont des tailles différentes).
+ */
+function constantTimeEquals(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(a, b);
 }

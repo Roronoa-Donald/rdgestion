@@ -1,5 +1,5 @@
 import { API } from '../api.js';
-import { escapeAttr, escapeHtml } from '../utils.js';
+import { escapeAttr, escapeHtml, formatMoney, getCurrency } from '../utils.js';
 import { Toast, withLoading, Skeletons, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 import { notifyLocalStorageChange } from '../utils/onboarding.js';
@@ -64,7 +64,7 @@ export class POSView {
           <div class="cart-summary">
             <div class="summary-row">
               <span>Sous-total :</span>
-              <span id="pos-subtotal" style="font-weight: 600;">0 FCFA</span>
+              <span id="pos-subtotal" style="font-weight: 600;">${'0 ' + getCurrency()}</span>
             </div>
 
             <!-- Configuration de remise -->
@@ -79,12 +79,12 @@ export class POSView {
 
             <div class="summary-row" id="discount-display" style="display: none; color: var(--error);">
               <span>Remise appliquée :</span>
-              <span id="pos-discount-amount">0 FCFA</span>
+              <span id="pos-discount-amount">${'0 ' + getCurrency()}</span>
             </div>
 
             <div class="summary-row total">
               <span>TOTAL À PAYER :</span>
-              <span id="pos-total">0 FCFA</span>
+              <span id="pos-total">${'0 ' + getCurrency()}</span>
             </div>
 
             <!-- Mode de paiement -->
@@ -101,7 +101,7 @@ export class POSView {
                 <input type="number" id="cash-received" class="form-input" style="font-size: 14px; font-weight: bold;" min="0" placeholder="0">
                 <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-top: 6px; color: var(--success);">
                   <span>Monnaie rendue :</span>
-                  <span id="cash-change">0 FCFA</span>
+                  <span id="cash-change">${'0 ' + getCurrency()}</span>
                 </div>
               </div>
             </div>
@@ -224,7 +224,7 @@ export class POSView {
           <input type="number" id="cash-received" class="form-input" style="font-size: 14px; font-weight: bold;" min="0" placeholder="0">
           <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-top: 6px; color: var(--success);">
             <span>Monnaie rendue :</span>
-            <span id="cash-change">0 FCFA</span>
+            <span id="cash-change">${'0 ' + getCurrency()}</span>
           </div>
         </div>
       `;
@@ -265,12 +265,12 @@ export class POSView {
 
     try {
       
-      this.categories = await API.categories.list();
+      this.categories = (await API.categories.list()).data;
       
 
       
       const res = await API.products.list({ page: 1, limit: 100 });
-      this.products = res.products;
+      this.products = res.data.products;
       
 
       catTabs.innerHTML = `
@@ -321,7 +321,7 @@ export class POSView {
           <img class="product-image" src="${escapeAttr(imageUrl)}" alt="Photo de ${productName}">
           <div class="product-title">${productName}</div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-            <span class="product-price">${Number(p.sell_price).toLocaleString()} FCFA</span>
+            <span class="product-price">${formatMoney(p.sell_price)}</span>
             <span class="product-stock ${isOutOfStock ? 'badge-danger' : ''}">${isOutOfStock ? 'Rupture' : p.stock_quantity + ' dispo'}</span>
           </div>
         </button>
@@ -384,7 +384,7 @@ export class POSView {
         <div class="cart-item-info">
           <div style="font-size: 13px; font-weight: 600; line-height: 1.3;">${escapeHtml(item.name)}</div>
           <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
-            ${Number(item.sell_price).toLocaleString()} FCFA / u
+            ${formatMoney(item.sell_price)} / u
           </div>
         </div>
         <div class="cart-item-qty">
@@ -452,17 +452,17 @@ export class POSView {
 
     const total = Math.max(0, subtotal - discountAmount);
 
-    document.getElementById('pos-subtotal').textContent = `${subtotal.toLocaleString()} FCFA`;
+    document.getElementById('pos-subtotal').textContent = formatMoney(subtotal);
 
     const discDisplay = document.getElementById('discount-display');
     if (discountAmount > 0) {
       discDisplay.style.display = 'flex';
-      document.getElementById('pos-discount-amount').textContent = `-${discountAmount.toLocaleString()} FCFA`;
+      document.getElementById('pos-discount-amount').textContent = `-${formatMoney(discountAmount)}`;
     } else {
       discDisplay.style.display = 'none';
     }
 
-    document.getElementById('pos-total').textContent = `${total.toLocaleString()} FCFA`;
+    document.getElementById('pos-total').textContent = formatMoney(total);
 
     if (this.paymentMethod === 'CASH') {
       this.calculateChange();
@@ -485,7 +485,7 @@ export class POSView {
     const total = Math.max(0, subtotal - discountAmount);
 
     const change = Math.max(0, received - total);
-    document.getElementById('cash-change').textContent = `${change.toLocaleString()} FCFA`;
+    document.getElementById('cash-change').textContent = formatMoney(change);
   }
 
   async validateTransaction() {
@@ -559,7 +559,7 @@ export class POSView {
           <div class="success-mark" aria-hidden="true">OK</div>
           <h2 id="pos-success-modal-title" style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Vente enregistrée !</h2>
           <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
-            La transaction <strong>${sale.transaction_number}</strong> d'un montant de <strong>${Number(sale.total_amount).toLocaleString()} FCFA</strong> a été créée.
+            La transaction <strong>${escapeHtml(sale.transaction_number)}</strong> d'un montant de <strong>${formatMoney(sale.total_amount)}</strong> a été créée.
           </p>
 
           <div style="display: flex; flex-direction: column; gap: 10px;">

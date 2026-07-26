@@ -9,7 +9,7 @@ export class CategoriesController {
   async list(request: FastifyRequest, reply: FastifyReply) {
     const tenantId = request.currentUser!.tenantId;
     const list = await categoriesService.listCategories(tenantId);
-    return reply.send(list);
+    return reply.send({ success: true, data: list });
   }
 
   /**

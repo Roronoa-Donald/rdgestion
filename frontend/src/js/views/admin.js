@@ -99,8 +99,8 @@ export class AdminView {
         search: this.searchQuery || undefined
       });
 
-      this.tenants = res.tenants;
-      this.pagination = res.pagination;
+      this.tenants = res.data.tenants;
+      this.pagination = res.data.pagination;
 
       document.getElementById('admin-pagination-text').textContent = 
         `Affichage de ${this.tenants.length} sur ${this.pagination.total} boutique(s) enregistrée(s)`;
