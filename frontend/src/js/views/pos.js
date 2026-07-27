@@ -97,7 +97,7 @@ export class POSView {
             <div id="payment-extra-details" style="margin-top: 12px;">
               <!-- Injecté selon mode -->
               <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" style="font-size: 12px;">Montant reçu en espèces (FCFA)</label>
+                <label class="form-label" style="font-size: 12px;">Montant reçu en espèces (${getCurrency()})</label>
                 <input type="number" id="cash-received" class="form-input" style="font-size: 14px; font-weight: bold;" min="0" placeholder="0">
                 <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-top: 6px; color: var(--success);">
                   <span>Monnaie rendue :</span>
@@ -228,7 +228,7 @@ export class POSView {
 
       extraContainer.innerHTML = `
         <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" for="cash-received" style="font-size: 12px;">Montant reçu en espèces (FCFA)</label>
+          <label class="form-label" for="cash-received" style="font-size: 12px;">Montant reçu en espèces (${getCurrency()})</label>
           <input type="number" id="cash-received" class="form-input" style="font-size: 14px; font-weight: bold;" min="0" placeholder="0">
           <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-top: 6px; color: var(--success);">
             <span>Monnaie rendue :</span>

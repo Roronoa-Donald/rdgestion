@@ -428,7 +428,8 @@ export class DashboardView {
     const step = Math.floor(data.length / labelCount);
     chartLabels.innerHTML = data.filter((_, i) => i % step === 0 || i === data.length - 1)
       .map((d, i, arr) => {
-        const idx = data.indexOf(d);
+        // F-RACE-2: findIndex documente l'intention (indexOf sur ref d'objet etait fragile)
+        const idx = data.findIndex(x => x === d);
         const x = padding.left + (idx / (data.length - 1 || 1)) * chartWidth;
         const label = period === 'daily' ? d.date.slice(5) 
                  : period === 'weekly' ? `S${i+1}`

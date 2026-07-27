@@ -1,5 +1,5 @@
 import { API } from '../api.js';
-import { escapeAttr, escapeHtml } from '../utils.js';
+import { escapeAttr, escapeHtml, formatMoney, getCurrency } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 import { notifyLocalStorageChange, isGuidedOnboardingDone, guidedOnboardingActive } from '../utils/onboarding.js';
@@ -226,7 +226,7 @@ export class ProductsView {
             <td data-label="SKU"><code>${sku}</code></td>
             <td data-label="Catégorie"><span class="badge" style="background: var(--bg-tertiary);">${categoryName}</span></td>
             <td data-label="P. Achat">${Number(p.purchase_price).toLocaleString()}</td>
-            <td data-label="P. Vente" style="font-weight: 600;">${Number(p.sell_price).toLocaleString()} FCFA</td>
+            <td data-label="P. Vente" style="font-weight: 600;">${formatMoney(p.sell_price)}</td>
             <td data-label="Stock" style="text-align: center;">
               <span class="badge ${stockBadgeClass}">${p.stock_quantity}</span>
             </td>
@@ -338,12 +338,12 @@ export class ProductsView {
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label">Prix d'achat (FCFA)</label>
+                  <label class="form-label">Prix d'achat (${getCurrency()})</label>
                   <input type="number" id="prod-price-purchase" class="form-input" value="${product?.purchase_price || ''}" min="0.01" step="0.01" required>
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label">Prix de vente (FCFA)</label>
+                  <label class="form-label">Prix de vente (${getCurrency()})</label>
                   <input type="number" id="prod-price-sell" class="form-input" value="${product?.sell_price || ''}" min="0.01" step="0.01" required>
                 </div>
 

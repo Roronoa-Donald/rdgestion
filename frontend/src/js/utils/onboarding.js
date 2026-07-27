@@ -6,6 +6,7 @@
  * ========================================== */
 
 import { API } from '../api.js';
+import { escapeHtml as _escapeHtmlShared } from './utils.js';
 
 const ONBOARDING_STORAGE_KEY = 'rdg_guided_onboarding_done';
 
@@ -625,13 +626,11 @@ class GuidedOnboarding {
    * Helper : échappe le HTML pour éviter les injections.
    */
   _escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&')
-      .replace(/</g, '<')
-      .replace(/>/g, '>')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+    // F-ONBOARD-1 fix: delegate to the shared escapeHtml (utils.js) which is the
+    // canonical, tested escaper. Call sites unchanged. Removes the private copy
+    // that didn't escape backticks (attribute-injection risk documented in
+    // frontend-audit-findings.md F-ONBOARD-1).
+    return _escapeHtmlShared(str);
   }
 }
 
