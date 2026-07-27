@@ -30,7 +30,7 @@ export const Toast = {
     document.body.appendChild(container);
   },
 
-  show(message, type = 'INFO') {
+  show(message, type = 'INFO', duration = 4000) {
     this.init();
     const config = this.types[type] || this.types.INFO;
     const id = `toast-${Date.now()}`;
@@ -56,16 +56,20 @@ export const Toast = {
       toast.classList.add('show');
     });
 
-    setTimeout(() => {
-      toast.classList.remove('show');
-      // Filet de sécurité : retirer même si 'transitionend' ne se déclenche pas
+    // duration (ms) — 4000 par defaut ; 0 = toast permanent (ne pas auto-dismiss)
+    const autoHideMs = (typeof duration === 'number' && duration >= 0) ? duration : 4000;
+    if (autoHideMs > 0) {
       setTimeout(() => {
-        if (toast.parentNode) toast.remove();
-      }, 300);
-      toast.addEventListener('transitionend', () => {
-        if (toast.parentNode) toast.remove();
-      }, { once: true });
-    }, 4000);
+        toast.classList.remove('show');
+        // Filet de sécurité : retirer même si 'transitionend' ne se déclenche pas
+        setTimeout(() => {
+          if (toast.parentNode) toast.remove();
+        }, 300);
+        toast.addEventListener('transitionend', () => {
+          if (toast.parentNode) toast.remove();
+        }, { once: true });
+      }, autoHideMs);
+    }
   },
 
   success(msg) { this.show(msg, 'SUCCESS'); },

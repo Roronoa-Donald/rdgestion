@@ -12,6 +12,7 @@ import { API } from './api.js';
 import { escapeHtml, initCurrency } from './utils.js';
 import { Toast, LoadingIndicator, confirmModal, alertModal } from './utils/ui.js';
 import { guidedOnboarding, isGuidedOnboardingDone } from './utils/onboarding.js';
+import { initPWAInstall } from './utils/pwa-install.js';
 
 // Table de routage de la Single Page Application (SPA)
 const routes = {
@@ -417,6 +418,18 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
   updateOnlineStatus(); // Exécuter la vérification initiale
+
+  // PWA — Bouton "Installer" + guide iOS
+  // initPWAInstall écoute beforeinstallprompt, appinstalled, et détecte iOS standalone
+  initPWAInstall();
+
+  // Connecter le custom event 'rdg-toast' (dispatché par pwa-install.js) au Toast UI
+  // pwa-install.js ne dépend pas de ui.js directement (éviter la circularité), donc
+  // on route via un event custom que le Toast écoute.
+  window.addEventListener('rdg-toast', (e) => {
+    const { message, type, duration } = e.detail || {};
+    if (message) Toast.show(message, type || 'info', duration);
+  });
 
   // Enregistrer le Service Worker (PWA Support)
   if ('serviceWorker' in navigator) {

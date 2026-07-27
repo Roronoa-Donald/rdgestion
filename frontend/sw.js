@@ -1,9 +1,16 @@
-const CACHE_NAME = 'rdgestion-cache-v12';
+const CACHE_NAME = 'rdgestion-cache-v13';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/src/assets/icon.svg',
+  '/src/assets/icon-192.png',
+  '/src/assets/icon-512.png',
+  '/src/assets/apple-touch-icon.png',
+  '/src/assets/apple-touch-icon-167.png',
+  '/src/assets/favicon-32.png',
+  '/src/assets/maskable-192.png',
+  '/src/assets/maskable-512.png',
   '/src/css/style.css',
   '/src/css/onboarding.css',
   '/src/css/pos.css',
@@ -15,6 +22,7 @@ const STATIC_ASSETS = [
   '/src/js/utils/ui.js',
   '/src/js/utils/aria.js',
   '/src/js/utils/onboarding.js',
+  '/src/js/utils/pwa-install.js',
   '/src/js/router.js',
   '/src/js/views/auth.js',
   '/src/js/views/dashboard.js',

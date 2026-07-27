@@ -8,7 +8,20 @@
   <meta name="description" content="Solution SaaS ultra-rapide de gestion de stock et caisse enregistreuse pour commerces en Afrique de l'Ouest.">
 
   <link rel="icon" type="image/svg+xml" href="src/assets/icon.svg">
-  <link rel="shortcut icon" href="src/assets/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="src/assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="src/assets/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="src/assets/icon-512.png">
+  <link rel="shortcut icon" href="src/assets/favicon-32.png">
+  <!-- iOS / iPadOS — apple-touch-icon pour "Ajouter à l'écran d'accueil" -->
+  <link rel="apple-touch-icon" href="src/assets/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="src/assets/apple-touch-icon-167.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="src/assets/apple-touch-icon.png">
+  <!-- iOS web app meta — masquer la barre Safari et utiliser le fond noir -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="RDGESTION">
+  <meta name="application-name" content="RDGESTION">
   
   <!-- Content Security Policy for production -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' http://localhost:* https://*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com;">
@@ -25,7 +38,8 @@
   
   <!-- PWA Manifest & Themes -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#f7f7f5">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#047857">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#10b981">
 </head>
 <body>
 

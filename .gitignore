@@ -49,6 +49,8 @@ test-results/
 
 # Screenshots
 *.png
+# Exception : icônes PWA de l'application frontend (doivent etre versionnees)
+!frontend/src/assets/*.png
 
 # Misc tool dirs
 .impeccable/
