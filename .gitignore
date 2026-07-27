@@ -62,6 +62,13 @@ test-results/
 nul
 *.tmp
 
+# Dossier "autres/" — fichiers non cruciaux déplacés (logs, screenshots, doublons, configs temporaires)
+# On force le suivi des fichiers explicitement déplacés via git mv (PRODUCT.md, test_gui.md, _nul)
+autres/
+!autres/PRODUCT.md
+!autres/test_gui.md
+!autres/_nul
+
 # Python (temp scripts)
 __pycache__/
 *.pyc
