@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" role="img" aria-labelledby="t d">
+  <title id="t">RDGESTION — Logo Full</title>
+  <desc id="d">Logo complet : Mark Tampon + Typographie Rubik 800.</desc>
+  <defs>
+    <style>
+      .ring { fill: none; stroke: #047857; stroke-width: 30; }
+      .ring-inner { fill: none; stroke: #047857; stroke-width: 15; stroke-opacity: 0.18; }
+      .mark-letters { fill: #047857; font-family: "Rubik", "Arial Black", sans-serif; font-weight: 800; }
+      .brand-text { fill: #1f2328; font-family: "Rubik", "Arial Black", sans-serif; font-weight: 800; }
+    </style>
+  </defs>
+  <!-- Mark -->
+  <g transform="translate(50, 50)">
+    <circle cx="50" cy="50" r="40" class="ring"/>
+    <circle cx="50" cy="50" r="30" class="ring-inner"/>
+    <text x="50" y="52" text-anchor="middle" dominant-baseline="central" font-size="45" class="mark-letters" letter-spacing="-4">RD</text>
+  </g>
+  <!-- Text -->
+  <text x="130" y="105" font-size="64" class="brand-text">RDGESTION</text>
+</svg>
