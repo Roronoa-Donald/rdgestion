@@ -176,6 +176,14 @@ export class POSView {
     // Valider vente
     document.getElementById('btn-validate-sale').addEventListener('click', () => this.validateTransaction());
 
+    // Attacher le listener cash-received initial (au premier render, le champ cash
+    // est visible par defaut mais son listener n'etait attache qu'apres un toggle
+    // de mode de paiement — la monnaie rendue ne se mettait pas a jour avant cela).
+    const initialCashInput = document.getElementById('cash-received');
+    if (initialCashInput) {
+      initialCashInput.addEventListener('input', () => this.calculateChange());
+    }
+
     // Charger les catégories & produits
     
     await this.loadPOSData();
@@ -360,10 +368,6 @@ export class POSView {
     }
     this.saveCart();
     this.updateCartUI();
-  }
-
-  saveCart() {
-    localStorage.setItem('pos_cart', JSON.stringify(this.cart));
   }
 
   saveCart() {

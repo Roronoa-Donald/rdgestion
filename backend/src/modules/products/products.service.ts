@@ -220,6 +220,16 @@ export class ProductsService {
   async updateProduct(tenantId: string, id: string, data: any, userId: string, clientIp: string, userAgent: string): Promise<Product> {
     const currentProduct = await this.getProductById(tenantId, id);
 
+    // Faille 21 — Le stock ne doit PAS etre modifiable via PUT /products/:id, car cela
+    // court-circuite la traçabilité (table stock_movements + audit STOCK_ADJUSTMENT).
+    // On force le flux dedie POST /products/:id/stock-movements (UI: bouton « Stock »).
+    // On supprime silencieusement le champ pour ne pas casser les clients existants qui
+    // l'incluent (legacy) : il sera simplement ignore, le stock reste 
+    // celui de currentProduct.
+    if (data && data.stock_quantity !== undefined) {
+      delete data.stock_quantity;
+    }
+
     // 1. Validation des prix
     const purchasePrice = data.purchase_price !== undefined ? Number(data.purchase_price) : Number(currentProduct.purchase_price);
     const sellPrice = data.sell_price !== undefined ? Number(data.sell_price) : Number(currentProduct.sell_price);

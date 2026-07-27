@@ -9,6 +9,8 @@
 const DEBUG = false;
 function log(...args) { if (DEBUG) console.log(...args); }
 
+import { escapeHtml } from '../utils.js';
+
 export const Toast = {
   types: {
     SUCCESS: { class: 'toast-success', icon: '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>' },
@@ -36,9 +38,10 @@ export const Toast = {
     const toast = document.createElement('div');
     toast.id = id;
     toast.className = `toast-notification ${config.class}`;
+    const safeMsg = escapeHtml(message);
     toast.innerHTML = `
       <span class="toast-icon" aria-hidden="true">${config.icon}</span>
-      <span class="toast-message">${message}</span>
+      <span class="toast-message">${safeMsg}</span>
     `;
 
     const container = document.getElementById('toast-container');
@@ -187,19 +190,23 @@ export function confirmModal(message, options = {}) {
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'confirm-modal-title');
 
+    const safeTitle = escapeHtml(title);
+    const safeMsg = escapeHtml(message);
+    const safeConfirm = escapeHtml(confirmText);
+    const safeCancel = escapeHtml(cancelText);
     modal.innerHTML = `
       <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px;">
         <div style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${danger ? 'var(--error-light)' : 'var(--accent-light)'};">
           <svg width="20" height="20" fill="none" stroke="${danger ? 'var(--error)' : 'var(--accent-color)'}" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
         </div>
         <div>
-          <h3 id="confirm-modal-title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px;">${title}</h3>
-          <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">${message}</p>
+          <h3 id="confirm-modal-title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px;">${safeTitle}</h3>
+          <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">${safeMsg}</p>
         </div>
       </div>
       <div style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button class="btn btn-secondary" id="confirm-cancel" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">${cancelText}</button>
-        <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="confirm-ok" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">${confirmText}</button>
+        <button class="btn btn-secondary" id="confirm-cancel" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">${safeCancel}</button>
+        <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="confirm-ok" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">${safeConfirm}</button>
       </div>
     `;
 
@@ -263,10 +270,12 @@ export function alertModal(message, options = {}) {
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'alert-modal-title');
 
+    const safeTitle = escapeHtml(title);
+    const safeMsg = escapeHtml(message);
     modal.innerHTML = `
       <div style="margin-bottom: 20px;">
-        <h3 id="alert-modal-title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px;">${title}</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">${message}</p>
+        <h3 id="alert-modal-title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px;">${safeTitle}</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">${safeMsg}</p>
       </div>
       <div style="display: flex; justify-content: flex-end;">
         <button class="btn btn-primary" id="alert-ok" style="padding: 8px 16px; font-size: 13px; min-height: 44px;">OK</button>

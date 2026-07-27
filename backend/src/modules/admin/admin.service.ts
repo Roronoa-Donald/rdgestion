@@ -136,6 +136,11 @@ export class SubscriptionsService {
           );
           const parrainSub = parrainSubRes.rows[0];
 
+          // Faille 22 — un parrain FREE n'a pas de subscription PRO ACTIVE, donc parrainSub
+          // etait undefined et tout le bloc reward etait SKIP. On branche desormais : si le
+          // parrain est FREE, on lui cree une subscription PRO MONTHLY de 30 jours fraiche.
+          // Dans TOUS les cas (FREE ou PRO), on marque les referrals REWARDED — sinon ils
+          // restent COMPLETED à jamais et la prochaine activation refails-skip encore.
           if (parrainSub) {
             const isMonthly = parrainSub.billing_type === 'MONTHLY';
             if (isMonthly) {
@@ -144,42 +149,48 @@ export class SubscriptionsService {
                 [parrainSub.id]
               );
             }
-
-            // Marquer les 2 referrals comme REWARDED
+          } else {
+            // Parrain FREE — creer une subscription PRO MONTHLY de 30 jours comme recompense.
             await client.query(
-              `UPDATE referrals SET status = 'REWARDED', rewarded_at = CURRENT_TIMESTAMP WHERE id = ANY($1::uuid[])`,
-              [rewardedIds]
-            );
-
-            // Audit log REFERRAL_REWARD_GRANTED
-            await client.query(
-              `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
-               VALUES ($1, $2, $3, $4, 'REFERRAL_REWARD_GRANTED', 'TENANT', $5, $6, $7, $8)`,
-              [
-                referral.referrer_tenant_id, null, null, null, referral.id,
-                JSON.stringify({
-                  referrer_tenant_id: referral.referrer_tenant_id,
-                  rewarded_referral_ids: rewardedIds,
-                  days_granted: isMonthly ? 30 : 0
-                }),
-                clientIp, userAgent
-              ]
-            );
-
-            // Notification au parrain
-            await client.query(
-              `INSERT INTO notifications (tenant_id, type, title, message, data)
-               VALUES ($1, 'REFERRAL_REWARD', $2, $3, $4)`,
-              [
-                referral.referrer_tenant_id,
-                isMonthly ? '1 mois PRO gratuit crédité 🎁' : 'Récompense de parrainage attribuée 🎁',
-                isMonthly
-                  ? "Vous avez reçu 1 mois PRO gratuit grâce à 2 filleuls passés PRO. Merci de recommander RDGESTION !"
-                  : "Vous avez atteint 2 filleuls passés PRO. Merci de recommander RDGESTION !",
-                JSON.stringify({ rewarded_referral_ids: rewardedIds, days_granted: isMonthly ? 30 : 0 })
-              ]
+              `INSERT INTO subscriptions (tenant_id, tier, billing_type, status, start_date, end_date)
+               VALUES ($1, 'PRO', 'MONTHLY', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '30 days')`,
+              [referral.referrer_tenant_id]
             );
           }
+
+          // Marquer les 2 referrals comme REWARDED (dans TOUS les cas).
+          await client.query(
+            `UPDATE referrals SET status = 'REWARDED', rewarded_at = CURRENT_TIMESTAMP WHERE id = ANY($1::uuid[])`,
+            [rewardedIds]
+          );
+
+          // Audit log REFERRAL_REWARD_GRANTED
+          await client.query(
+            `INSERT INTO audit_logs (tenant_id, user_id, username, user_role, action, entity_type, entity_id, details, ip_address, user_agent)
+             VALUES ($1, $2, $3, $4, 'REFERRAL_REWARD_GRANTED', 'TENANT', $5, $6, $7, $8)`,
+            [
+              referral.referrer_tenant_id, null, null, null, referral.id,
+              JSON.stringify({
+                referrer_tenant_id: referral.referrer_tenant_id,
+                rewarded_referral_ids: rewardedIds,
+                days_granted: 30,
+                reward_type: parrainSub ? 'extension' : 'new_subscription'
+              }),
+              clientIp, userAgent
+            ]
+          );
+
+          // Notification au parrain
+          await client.query(
+            `INSERT INTO notifications (tenant_id, type, title, message, data)
+             VALUES ($1, 'REFERRAL_REWARD', $2, $3, $4)`,
+            [
+              referral.referrer_tenant_id,
+              '1 mois PRO gratuit crédité 🎁',
+              "Vous avez reçu 1 mois PRO gratuit grâce à 2 filleuls passés PRO. Merci de recommander RDGESTION !",
+              JSON.stringify({ rewarded_referral_ids: rewardedIds, days_granted: 30, reward_type: parrainSub ? 'extension' : 'new_subscription' })
+            ]
+          );
         }
       }
 

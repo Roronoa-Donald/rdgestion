@@ -485,7 +485,7 @@ export const API = {
           (s.items || []).reduce((sum, it) => sum + (it.quantity || 0), 0),
           (s.total_amount || 0).toFixed(0),
           s.payment_method || '',
-          s.status === 'cancelled' ? 'Annulée' : 'Active'
+          s.is_cancelled ? 'Annulée' : 'Active'
         ];
       });
 

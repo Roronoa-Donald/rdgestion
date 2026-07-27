@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rdgestion-cache-v11';
+const CACHE_NAME = 'rdgestion-cache-v12';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,6 +6,8 @@ const STATIC_ASSETS = [
   '/src/assets/icon.svg',
   '/src/css/style.css',
   '/src/css/onboarding.css',
+  '/src/css/pos.css',
+  '/src/css/components.css',
   '/src/js/init-theme.js',
   '/src/js/app.js',
   '/src/js/api.js',

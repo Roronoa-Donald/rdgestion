@@ -1,16 +1,9 @@
 import { API } from '../api.js';
 import { Toast, withLoading, Skeletons, confirmModal } from '../utils/ui.js';
 
-const SETUP_KEYS = [
-  'rdg_setup_dismissed',
-  'rdg_setup_product_created',
-  'rdg_setup_referral_seen',
-  'rdg_guided_onboarding_done'
-];
-
-function resetSetupGuide() {
-  SETUP_KEYS.forEach(key => localStorage.removeItem(key));
-}
+// Note: resetSetupGuide() previously declared here was dead code (never called anywhere).
+// The canonical onboarding reset path now lives in utils/onboarding.js via guidedOnboarding.reset().
+// Removed to avoid confusion per frontend audit finding F-DEAD-1.
 
 function renderAuthShell(title, subtitle, body, footer, cardStyle = '') {
   return `

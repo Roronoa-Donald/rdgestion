@@ -149,9 +149,13 @@ export class StockView {
       Toast.error('Erreur lors du chargement des produits.');
       document.getElementById('stock-table-body').innerHTML = `
         <tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--error);">
-          Erreur de chargement. <button class="btn btn-secondary btn-sm" onclick="location.reload()" style="margin-left: 8px;">Réessayer</button>
+          Erreur de chargement. <button id="btn-retry-stock-load" class="btn btn-secondary btn-sm" style="margin-left: 8px;">Réessayer</button>
         </td></tr>
       `;
+      const retryBtn = document.getElementById('btn-retry-stock-load');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', () => this.loadData());
+      }
     }
   }
 

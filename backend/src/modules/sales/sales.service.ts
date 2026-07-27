@@ -28,6 +28,17 @@ export class SalesService {
    * Enregistre une nouvelle vente dans une transaction SQL atomique et isolée.
    */
   async createSale(tenantId: string, sellerId: string, sellerRole: UserRole, input: CreateSaleInput, clientIp: string, userAgent: string): Promise<Sale & { items: any[] }> {
+    // 0. Faille 18 - défense en profondeur : refuser un panier vide.
+    //    Le schéma Ajv impose deja minItems:1, mais on verifie aussi ici au cas
+    //    ou la route serait appelee en contournant la validation (ex: webhook interne).
+    //    Une vente fantôme à 0 FCFA consommerait le quota FREE 30/jour sans contrepartie.
+    if (!input.items || !Array.isArray(input.items) || input.items.length === 0) {
+      const err = new Error('Le panier est vide. Ajoutez au moins un produit avant de valider la vente.');
+      (err as any).statusCode = 400;
+      (err as any).code = 'EMPTY_CART';
+      throw err;
+    }
+
     // 1. Vérifier si l'abonnement du tenant est actif
     // Faille H3 — on vérifie non seulement le status='ACTIVE' mais aussi que l'abonnement
     // n'a pas expiré (end_date NULL = illimité, sinon doit être dans le futur). Un abonnement
