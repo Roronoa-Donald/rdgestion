@@ -371,7 +371,7 @@ export class DashboardView {
     this.renderRevenueChart(this.currentPeriod);
     this.bindPeriodSelector();
     if (stats.category_sales && stats.category_sales.length > 0) {
-      this.renderCategoryChart(stats.category_sales);
+      this.renderCategoryChart(stats.category_sales, currency);
     }
   }
 
@@ -439,7 +439,7 @@ export class DashboardView {
       }).join('');
   }
 
-  renderCategoryChart(categories) {
+  renderCategoryChart(categories, currency) {
     let section = document.getElementById('category-sales-section');
     if (!section) {
       const grid = document.querySelector('.dashboard-grid');
