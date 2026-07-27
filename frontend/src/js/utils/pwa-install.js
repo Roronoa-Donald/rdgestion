@@ -166,7 +166,7 @@ function detectIOSStandalone() {
   // Déléguer l'affichage à ui.js Toast via un event custom
   const evt = new CustomEvent('rdg-toast', {
     detail: {
-      message: 'Installez RDGESTION : Safari → Partager (⬆︎) → "Sur l\\'écran d\\'accueil" 📲',
+      message: "Installez RDGESTION : Safari → Partager (⬆︎) → \"Sur l'écran d'accueil\" 📲",
       // 8 secondes au lieu du défaut pour laisser le temps de lire l'instruction
       duration: 8000
     }
