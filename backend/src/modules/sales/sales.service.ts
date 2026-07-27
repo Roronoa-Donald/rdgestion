@@ -213,17 +213,28 @@ export class SalesService {
       }
 
       // 7. Générer un numéro de transaction unique et incrémental pour le tenant
-      // Faille H5 — race condition : deux ventes concurrentes peuvent calculer le même MAX+1
-      // et l'INSERT échoue avec erreur PostgreSQL 23505 (unique_violation).
-      // On wrappe la génération + l'INSERT dans une boucle de retry (max 3 tentatives)
-      // qui recalcule un nouveau numéro si la contrainte unique est violée.
+      // Faille H5/17 — race condition : le pattern précédent SELECT MAX(...) + 1 n'était
+      // pas verrouillé → deux ventes concurrentes calculaient le même MAX et une seule
+      // réussissait (l'autre échouait avec 23505). Le retry 23505 compensait mais restait
+      // un symptôme.
+      // Désormais on utilise une SEQUENCE PostgreSQL annuelle par année (sales_seq_YYYY)
+      // qui est atomique via nextval() (lock-free). La séquence est créée à la volée
+      // la 1re fois qu'une vente d'une nouvelle année survient (CREATE SEQUENCE IF NOT
+      // EXISTS). La migration 020 crée et aligne celle de l'année courante sur le MAX
+      // des ventes existantes (via setval). Le retry 23505 reste en filet de sécurité
+      // défensif (au cas où la séquence future manquerait, mais elle est créée ici même).
       const year = new Date().getFullYear();
       const computeNextTransactionNumber = async (): Promise<string> => {
+        // S'assurer que la sequence annuelle existe (annees futures + migration 020
+        // ne couvre que l'annee de creation). CREATE SEQUENCE IF NOT EXISTS est idempotent.
+        await client.query(
+          `DO $$ BEGIN
+             CREATE SEQUENCE IF NOT EXISTS sales_seq_${year} START 1;
+           END $$;`
+        );
+        // nextval() est atomique : aucun risque de collision entre deux ventes concurrentes.
         const seqRes = await client.query<{ next_val: string }>(
-          `SELECT COALESCE(MAX(SUBSTRING(transaction_number FROM 12)::integer), 0) + 1 as next_val
-           FROM sales
-           WHERE tenant_id = $1 AND transaction_number LIKE $2`,
-          [tenantId, `VENTE-${year}-%`]
+          `SELECT nextval('sales_seq_${year}')::text as next_val`
         );
         const nextSequence = String(seqRes.rows[0]?.next_val ?? 1).padStart(7, '0');
         return `VENTE-${year}-${nextSequence}`;
