@@ -6,7 +6,7 @@
  * ========================================== */
 
 import { API } from '../api.js';
-import { escapeHtml as _escapeHtmlShared } from './utils.js';
+import { escapeHtml as _escapeHtmlShared } from '../utils.js';
 
 const ONBOARDING_STORAGE_KEY = 'rdg_guided_onboarding_done';
 
