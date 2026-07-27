@@ -265,6 +265,13 @@ export class SalesService {
       let sale: Sale | null = null;
       let lastError: unknown = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
+        // SAVEPOINT avant chaque essai d'INSERT : si l'INSERT échoue (23505),
+        // PostgreSQL passe la transaction en mode "aborted" et refuse toute
+        // commande suivante tant qu'un ROLLBACK (ou ROLLBACK TO SAVEPOINT)
+        // n'est pas exécuté. Sans SAVEPOINT, le retry serait impossible dans
+        // la même transaction (problème observé en prod : "current transaction
+        // is aborted, commands ignored until end of transaction block").
+        await client.query(`SAVEPOINT sale_insert_attempt_${attempt}`);
         const transactionNumber = await computeNextTransactionNumber();
         try {
           const saleRes = await client.query<Sale>(saleInsertQuery, [
@@ -283,8 +290,16 @@ export class SalesService {
             changeGiven
           ]);
           sale = saleRes.rows[0]!;
+          // L'INSERT a réussi : on libère le savepoint (indispensable pour
+          // que la transaction parente puisse COMMIT proprement).
+          await client.query(`RELEASE SAVEPOINT sale_insert_attempt_${attempt}`);
           break; // INSERT réussi → on sort de la boucle de retry
         } catch (err: any) {
+          // ROLLBACK TO SAVEPOINT restaure l'état de la transaction pour les
+          // commandes suivantes (sinon le retry resterait en "aborted").
+          await client.query(`ROLLBACK TO SAVEPOINT sale_insert_attempt_${attempt}`);
+          // On libère ensuite le savepoint (propre, et évite l'accumulation).
+          await client.query(`RELEASE SAVEPOINT sale_insert_attempt_${attempt}`);
           lastError = err;
           // Code PostgreSQL 23505 = unique_violation (collision sur transaction_number)
           // Si ce n'est pas une 23505, on ne retente pas — on propage l'erreur.

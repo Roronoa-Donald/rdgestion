@@ -43,4 +43,16 @@ $$;
 
 -- Index d'acces rapide sur la sequence annuelle (utile pour le SELECT MAX futur si besoin)
 -- Non necessaire pour nextval() mais documente l'intention.
-COMMENT ON SEQUENCE sales_seq_2028 IS 'Sequence atomique annuelle pour transaction_number (Bug 17). Genere le suffixe numerique de VENTE-YYYY-NNNNNNN. Cree/alignee dynamiquement a la 1re vente de chaque annee.';
+--
+-- NB: on ne hardcode pas une annee dans le COMMENT ON SEQUENCE car la sequence
+-- creee est celle de l'annee courante (NOW()), variable. Le COMMENT pose une
+-- regression sur les instances ou l'annee systeme change entre deploiements.
+-- On documente l'intention via le bloc SQL dynamique ci-dessous (idempotent).
+DO $$
+DECLARE
+    current_year text := to_char(NOW(), 'YYYY');
+    seq_name text := 'sales_seq_' || current_year;
+BEGIN
+    EXECUTE format('COMMENT ON SEQUENCE %I IS ''Sequence atomique annuelle pour transaction_number (Bug 17). Genere le suffixe numerique de VENTE-YYYY-NNNNNNN. Cree/alignee dynamiquement a la 1re vente de chaque annee.''', seq_name);
+END
+$$;
