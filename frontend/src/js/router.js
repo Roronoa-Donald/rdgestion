@@ -104,11 +104,13 @@ export class Router {
     
     if (route.layout === 'auth' && sidebar && layout) {
       sidebar.style.display = 'flex';
+      layout.classList.remove('no-sidebar');
       // Mettre à jour les informations du badge gérant/vendeur
       this.updateUserBadge(user);
       this.updateActiveMenuItem(hash);
     } else if (sidebar) {
       sidebar.style.display = 'none';
+      if (layout) layout.classList.add('no-sidebar');
     }
 
     // Détruire l'ancienne vue pour libérer la mémoire (listeners, etc.)

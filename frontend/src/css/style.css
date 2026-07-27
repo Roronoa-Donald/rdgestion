@@ -360,6 +360,12 @@ textarea:disabled {
   flex-direction: column;
 }
 
+/* Routes publiques (login/register) : la sidebar est masquée, on reset le décalage
+   pour que le contenu (carte auth) soit centré dans tout le viewport desktop. */
+.no-sidebar .main-content {
+  margin-left: 0;
+}
+
 .main-header {
   height: var(--header-height);
   padding: 0 32px;
