@@ -1,21 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t d">
   <title id="t">RDGESTION — Logo Mark (Tampon)</title>
-  <desc id="d">Logo officiel : tampon encreur circulaire, contour gras accent vert émeraude, lettrage R/D enlacés.</desc>
-  <defs>
-    <style>
-      .ring { fill: none; stroke: #047857; stroke-width: 28; }
-      .ring-inner { fill: none; stroke: #047857; stroke-width: 14; stroke-opacity: 0.18; }
-      .letters { fill: #047857; font-family: "Rubik", "Arial Black", sans-serif; font-weight: 800; }
-      .tick { fill: #047857; }
-      .tick-label { fill: #047857; font-family: "Nunito Sans", sans-serif; font-weight: 600; font-size: 22px; letter-spacing: 4px; }
-    </style>
-  </defs>
-  <circle cx="256" cy="256" r="184" class="ring"/>
-  <circle cx="256" cy="256" r="152" class="ring-inner"/>
-  <text x="256" y="256" text-anchor="middle" dominant-baseline="central" font-size="180" class="letters" letter-spacing="-10">RD</text>
-  <text x="256" y="478" text-anchor="middle" class="tick-label">RDGESTION</text>
-  <rect x="84" y="84" width="6" height="20" class="tick"/>
-  <rect x="426" y="84" width="6" height="20" class="tick" transform="rotate(180 429 94)"/>
-  <rect x="84" y="428" width="6" height="20" class="tick" transform="rotate(-90 87 438)"/>
-  <rect x="426" y="428" width="6" height="20" class="tick" transform="rotate(90 429 438)"/>
+  <desc id="d">Logo officiel : tampon encreur circulaire, disque vert émeraude plein, lettres RD en knock-out blanc.</desc>
+  <circle cx="256" cy="256" r="200" fill="#047857"/>
+  <circle cx="256" cy="256" r="170" fill="none" stroke="#ffffff" stroke-width="3" stroke-opacity="0.15"/>
+  <text x="256" y="256" text-anchor="middle" dominant-baseline="central" font-size="200" fill="#ffffff" font-family="Rubik, Arial Black, sans-serif" font-weight="800" letter-spacing="-12">RD</text>
 </svg>
