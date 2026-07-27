@@ -10,7 +10,13 @@ function renderAuthShell(title, subtitle, body, footer, cardStyle = '') {
     <div class="auth-shell">
       <section class="auth-card fade-in" style="${cardStyle}">
         <div class="auth-header">
-          <div class="logo-icon auth-logo">RD</div>
+          <div class="logo-icon auth-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RDGESTION" width="36" height="36">
+              <circle cx="256" cy="256" r="184" fill="none" stroke="var(--accent-color)" stroke-width="28"/>
+              <circle cx="256" cy="256" r="152" fill="none" stroke="var(--accent-color)" stroke-width="14" stroke-opacity="0.18"/>
+              <text x="256" y="256" text-anchor="middle" dominant-baseline="central" font-size="180" fill="var(--accent-contrast)" font-family="Rubik, Arial Black, sans-serif" font-weight="800" letter-spacing="-10">RD</text>
+            </svg>
+          </div>
           <h2>${title}</h2>
           <p>${subtitle}</p>
         </div>
