@@ -2648,6 +2648,30 @@ textarea:disabled {
   }
 
   #mobile-menu-btn {
-    display: none !important;
+      display: none !important;
+    }
   }
-}
+
+  /* ─── Dashboard Admin ──────────────────────────────────────── */
+  .dashboard-kpis-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dashboard-charts-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dashboard-drilldown-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 1024px) {
+    .dashboard-kpis-grid { grid-template-columns: repeat(2, 1fr); }
+    .dashboard-charts-row { flex-direction: column; }
+    .dashboard-drilldown-row { flex-direction: column; }
+  }

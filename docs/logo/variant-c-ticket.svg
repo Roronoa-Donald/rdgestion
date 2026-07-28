@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t d">
+  <title id="t">RDGESTION — Variante C « Ticket »</title>
+  <desc id="d">Logo mark : R + D fusionnés en monogramme façon ticket de caisse mono-contrasté, accent en bandeau vertical.</desc>
+  <defs>
+    <style>
+      .accent { fill: #047857; }
+      .ink { fill: #1f2328; }
+      .receipt-line { fill: none; stroke: #1f2328; stroke-width: 6; stroke-dasharray: 4 6; }
+      .letters { font-family: "Rubik", "Arial Black", sans-serif; font-weight: 800; }
+    </style>
+  </defs>
+  <rect x="32" y="32" width="448" height="448" rx="32" fill="#ffffff"/>
+  <rect x="32" y="32" width="56" height="448" class="accent"/>
+  <line x1="100" y1="120" x2="468" y2="120" class="receipt-line"/>
+  <line x1="100" y1="392" x2="468" y2="392" class="receipt-line"/>
+  <text x="270" y="280" text-anchor="middle" dominant-baseline="central" font-size="260" class="ink letters" letter-spacing="-18">RD</text>
+  <text x="270" y="360" text-anchor="middle" font-family="Nunito Sans, sans-serif" font-weight="700" font-size="34" fill="#1f2328" letter-spacing="3">RDGESTION</text>
+</svg>

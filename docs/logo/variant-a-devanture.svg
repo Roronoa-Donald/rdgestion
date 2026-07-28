@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t d">
+  <title id="t">RDGESTION — Variante A « Devanture »</title>
+  <desc id="d">Logo mark : carré accent vert émeraude avec lettres RD en knock-out blanc, Rubik 800, liseré intérieur subtil.</desc>
+  <defs>
+    <style>
+      .mark-bg { fill: #047857; }
+      .mark-edge { fill: none; stroke: #ffffff; stroke-opacity: 0.14; stroke-width: 2; }
+      .mark-letters { fill: #ffffff; font-family: "Rubik", "Arial Black", sans-serif; font-weight: 800; }
+    </style>
+  </defs>
+  <rect x="32" y="32" width="448" height="448" rx="32" class="mark-bg"/>
+  <rect x="32" y="32" width="448" height="448" rx="32" class="mark-edge" style="stroke-width:4;"/>
+  <text x="256" y="345" text-anchor="middle" font-size="232" class="mark-letters" letter-spacing="-14">RD</text>
+</svg>

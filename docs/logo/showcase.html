@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDGESTION — Logo Showcase</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Rubik:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-light: #f7f7f5;
+            --bg-dark: #0c0c0d;
+            --text-light: #1f2328;
+            --text-dark: #f4f4f5;
+            --accent: #047857;
+            --accent-dark: #10b981;
+            --card-light: #ffffff;
+            --card-dark: #18181b;
+            --radius: 12px;
+        }
+        body {
+            font-family: 'Nunito Sans', sans-serif;
+            background: var(--bg-light);
+            color: var(--text-light);
+            margin: 0;
+            padding: 40px 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+        body.dark {
+            background: var(--bg-dark);
+            color: var(--text-dark);
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        h1 {
+            font-family: 'Rubik', sans-serif;
+            font-weight: 800;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            opacity: 0.7;
+            font-size: 1.1rem;
+        }
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 100;
+        }
+        .dark .theme-toggle {
+            background: #27272a;
+            color: white;
+            border-color: rgba(255,255,255,0.1);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+        }
+        .card {
+            background: var(--card-light);
+            border-radius: var(--radius);
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .dark .card {
+            background: var(--card-dark);
+            border-color: rgba(255,255,255,0.05);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .logo-preview {
+            width: 200px;
+            height: 200px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            background: var(--accent);
+            color: white;
+        }
+        .card h2 {
+            font-family: 'Rubik', sans-serif;
+            margin: 0 0 15px 0;
+            font-size: 1.5rem;
+        }
+        .card p {
+            line-height: 1.6;
+            opacity: 0.8;
+            font-size: 0.95rem;
+            margin-bottom: 25px;
+        }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-family: 'Rubik', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">🌓 Switch Theme</button>
+    
+    <div class="container">
+        <header>
+            <h1>RDGESTION</h1>
+            <p class="subtitle">Visual Identity Proposal — 2026</p>
+        </header>
+
+        <div class="grid">
+            <!-- Variante A -->
+            <div class="card">
+                <span class="tag">Option A</span>
+                <div class="logo-preview">
+                    <img src="variant-a-devanture.svg" alt="Variante A">
+                </div>
+                <h2>La Devanture</h2>
+                <p>SaaS Pro, stabilité et confiance. Inspiré par les enseignes commerciales modernes. L'équilibre parfait entre héritage et futur.</p>
+                <button class="btn" onclick="alert('Option A sélectionnée !')">Choisir la Devanture</button>
+            </div>
+
+            <!-- Variante B -->
+            <div class="card">
+                <span class="tag">Option B</span>
+                <div class="logo-preview">
+                    <img src="variant-b-tampon.svg" alt="Variante B">
+                </div>
+                <h2>Le Tampon</h2>
+                <p>L'autorité et la validation. Évoque le cachet officiel et la preuve transactionnelle. Très fort pour la crédibilité métier.</p>
+                <button class="btn" onclick="alert('Option B sélectionnée !')">Choisir le Tampon</button>
+            </div>
+
+            <!-- Variante C -->
+            <div class="card">
+                <span class="tag">Option C</span>
+                <div class="logo-preview">
+                    <img src="variant-c-ticket.svg" alt="Variante C">
+                </div>
+                <h2>Le Ticket</h2>
+                <p>La transaction pure. Design monogramme inspiré du ticket de caisse. Positionnement outil-métier ultra-précis.</p>
+                <button class="btn" onclick="alert('Option C sélectionnée !')">Choisir le Ticket</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            Impeccable Design System v4.0.2 — Basé sur Rubik 800 & #047857
+        </div>
+    </div>
+</body>
+</html>

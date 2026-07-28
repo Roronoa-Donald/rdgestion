@@ -410,6 +410,14 @@ export const API = {
     },
     async getSubscription() {
       return request('/admin/subscriptions/current');
+    },
+    /**
+     * Dashboard analytique SuperAdmin.
+     * Renvoie { success: true, data: { acquisition, activation, engagement,
+     * monetisation, sante, repartition } }.
+     */
+    async getDashboard() {
+      return request('/admin/dashboard');
     }
   },
   payments: {
