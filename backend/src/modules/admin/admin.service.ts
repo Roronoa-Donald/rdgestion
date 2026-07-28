@@ -499,6 +499,393 @@ export class AdminService {
   }
 
   /**
+   * Dashboard analytics SuperAdmin (SUPERADMIN) — KPIs temps réel + évolution 30 jours.
+   * Toutes les métriques sont calculées en une seule requête SQL agrégée via des CTE,
+   * pour minimiser les allers-retours DB. Le tenant système est exclu de toutes les stats.
+   *
+   * Groupes de métriques :
+   * - ACQUISITION : inscriptions (total / 24h / 7j / 30j) + évolution 30j + conversion parrainage
+   * - ACTIVATION : onboarding completion rate / en cours / boutiques 1re vente / produits / catégories
+   * - ENGAGEMENT : boutiques actives 7j/30j + ventes 24h/7j/30j + évolution 30j + top 5 boutiques
+   * - MONÉTISATION : FREE / PRO / PRO_MONTHLY / PRO_LIFETIME / MRR / conversion FREE->PRO / churn
+   * - SANTÉ PLATEFORME : boutiques inactives / abonnements expirant 7j / ruptures stock / notifs non lues / erreurs 24h
+   * - RÉPARTITION : par ville + par pays
+   */
+  async getDashboardAnalytics() {
+    const SYSTEM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+
+    // --- Une seule grosse requête avec CTE pour limiter les aller-retour DB ---
+    // Chaque CTE produit une métrique (singleton ou série temporelle).
+    const sql = `
+      WITH
+      -- Tenants réels (hors système) — base de jointure pour tous les calculs
+      real_tenants AS (
+        SELECT id, name, city, country, is_active, onboarding_completed, created_at
+        FROM tenants
+        WHERE id != $1
+      ),
+      -- Inscriptions par période
+      inscriptions AS (
+        SELECT
+          COUNT(*)                                                AS total_inscriptions,
+          COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)      AS inscrits_aujourd_hui,
+          COUNT(*) FILTER (WHERE created_at >  NOW() - INTERVAL '7 days')  AS inscrits_7j,
+          COUNT(*) FILTER (WHERE created_at >  NOW() - INTERVAL '30 days') AS inscrits_30j
+        FROM real_tenants
+      ),
+      -- Évolution des inscriptions (30 derniers jours)
+      evolution_inscriptions AS (
+        SELECT
+          d::date                                                           AS date,
+          (SELECT count(*) FROM real_tenants rt WHERE rt.created_at::date = d) AS count
+        FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, '1 day') AS gs(d)
+      ),
+      -- Référaux complétés (conversion parrainage)
+      referrals_completed AS (
+        SELECT count(*) AS count
+        FROM referrals
+        WHERE status IN ('COMPLETED', 'REWARDED')
+          AND referrer_tenant_id != $1
+      ),
+      -- Onboarding : taux de completion + en cours
+      onboarding_stats AS (
+        SELECT
+          count(*)                                                          AS total,
+          count(*) FILTER (WHERE onboarding_completed = true)               AS completes,
+          count(*) FILTER (WHERE onboarding_completed = false)              AS en_cours
+        FROM real_tenants
+      ),
+      -- Boutiques ayant déjà enregistré au moins une vente non annulée (1re vente)
+      boutiques_premiere_vente AS (
+        SELECT count(DISTINCT s.tenant_id) AS count
+        FROM sales s
+        WHERE s.is_cancelled = false
+          AND s.tenant_id != $1
+      ),
+      -- Catalogue : produits + catégories créés (toutes boutiques réelles)
+      catalogue_stats AS (
+        SELECT
+          (SELECT count(*) FROM products p WHERE p.tenant_id != $1 AND p.is_deleted = false)     AS produits_crees_total,
+          (SELECT count(*) FROM categories c WHERE c.tenant_id != $1)                            AS categories_crees_total
+      ),
+      -- Boutiques actives (ayant eu ≥1 vente non annulée sur la période)
+      boutiques_actives_7j AS (
+        SELECT count(DISTINCT tenant_id) AS count
+        FROM sales
+        WHERE is_cancelled = false
+          AND tenant_id != $1
+          AND created_at > NOW() - INTERVAL '7 days'
+      ),
+      boutiques_actives_30j AS (
+        SELECT count(DISTINCT tenant_id) AS count
+        FROM sales
+        WHERE is_cancelled = false
+          AND tenant_id != $1
+          AND created_at > NOW() - INTERVAL '30 days'
+      ),
+      -- Ventes par période (non annulées)
+      ventes_periodes AS (
+        SELECT
+          count(*)                                                                AS ventes_total,
+          count(*) FILTER (WHERE s.created_at >= CURRENT_DATE)                   AS ventes_aujourd_hui,
+          count(*) FILTER (WHERE s.created_at >  NOW() - INTERVAL '7 days')      AS ventes_7j,
+          count(*) FILTER (WHERE s.created_at >  NOW() - INTERVAL '30 days')     AS ventes_30j
+        FROM sales s
+        WHERE s.is_cancelled = false
+          AND s.tenant_id != $1
+      ),
+      -- Évolution journalière des ventes (30 derniers jours : count + revenue)
+      evolution_ventes AS (
+        SELECT
+          d::date                                                                AS date,
+          (SELECT count(*) FROM sales s WHERE s.is_cancelled = false AND s.tenant_id != $1 AND s.created_at::date = d) AS count,
+          (SELECT COALESCE(sum(total_amount), 0) FROM sales s WHERE s.is_cancelled = false AND s.tenant_id != $1 AND s.created_at::date = d) AS revenue
+        FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, '1 day') AS gs(d)
+      ),
+      -- Top 5 boutiques par nombre de ventes non annulées
+      top_boutiques AS (
+        SELECT t.name AS tenant_name,
+               count(s.id) AS ventes_count,
+               COALESCE(sum(s.total_amount), 0) AS revenue
+        FROM sales s
+        JOIN real_tenants t ON t.id = s.tenant_id
+        WHERE s.is_cancelled = false
+        GROUP BY t.id, t.name
+        ORDER BY ventes_count DESC
+        LIMIT 5
+      ),
+      -- Abonnements : décompte FREE/PRO (status ACTIVE uniquement)
+      sub_free AS (
+        SELECT count(*) AS count
+        FROM subscriptions
+        WHERE tier = 'FREE' AND status = 'ACTIVE'
+          AND tenant_id != $1
+      ),
+      sub_pro AS (
+        SELECT count(*) AS count
+        FROM subscriptions
+        WHERE tier = 'PRO' AND status = 'ACTIVE'
+          AND tenant_id != $1
+      ),
+      sub_pro_monthly AS (
+        SELECT count(*) AS count
+        FROM subscriptions
+        WHERE tier = 'PRO' AND status = 'ACTIVE' AND billing_type = 'MONTHLY'
+          AND tenant_id != $1
+      ),
+      sub_pro_lifetime AS (
+        SELECT count(*) AS count
+        FROM subscriptions
+        WHERE tier = 'PRO' AND status = 'ACTIVE' AND billing_type = 'LIFETIME'
+          AND tenant_id != $1
+      ),
+      -- Abonnements PRO expirés (churn) — tier PRO, status EXPIRED, toutes boutiques réelles
+      sub_pro_expired AS (
+        SELECT count(*) AS count
+        FROM subscriptions
+        WHERE tier = 'PRO'
+          AND status = 'EXPIRED'
+          AND tenant_id != $1
+      ),
+      -- Abonnements PRO MONTHLY actifs expirant dans les 7 prochains jours
+      sub_expirant_7j AS (
+        SELECT count(*) AS count
+        FROM subscriptions
+        WHERE tier = 'PRO'
+          AND status = 'ACTIVE'
+          AND billing_type = 'MONTHLY'
+          AND end_date IS NOT NULL
+          AND end_date <= NOW() + INTERVAL '7 days'
+          AND tenant_id != $1
+      ),
+      -- Santé plateforme
+      boutiques_inactives AS (
+        SELECT count(*) AS count
+        FROM real_tenants
+        WHERE is_active = false
+      ),
+      -- Alertes stock rupture : produits en rupture (stock = 0), boutique réelle
+      alertes_stock_rupture AS (
+        SELECT count(*) AS count
+        FROM products p
+        WHERE p.is_deleted = false
+          AND p.stock_quantity = 0
+          AND p.tenant_id != $1
+      ),
+      notifications_non_lues AS (
+        SELECT count(*) AS count
+        FROM notifications n
+        WHERE n.is_read = false
+          AND n.tenant_id != $1
+      ),
+      erreurs_recentes AS (
+        SELECT count(*) AS count
+        FROM audit_logs a
+        WHERE a.created_at > NOW() - INTERVAL '24 hours'
+          AND a.tenant_id != $1
+      ),
+      -- Répartition géographique
+      par_ville AS (
+        SELECT city, count(*) AS count
+        FROM real_tenants
+        WHERE city IS NOT NULL
+        GROUP BY city
+        ORDER BY count DESC
+      ),
+      par_pays AS (
+        SELECT country, count(*) AS count
+        FROM real_tenants
+        WHERE country IS NOT NULL
+        GROUP BY country
+        ORDER BY count DESC
+      )
+      -- Résultat agrégé : un seul row avec les singletons, + arrays via LATERAL
+      SELECT
+        (SELECT total_inscriptions FROM inscriptions)            AS total_inscriptions,
+        (SELECT inscrits_aujourd_hui FROM inscriptions)          AS inscrits_aujourd_hui,
+        (SELECT inscrits_7j FROM inscriptions)                  AS inscrits_7j,
+        (SELECT inscrits_30j FROM inscriptions)                  AS inscrits_30j,
+        (SELECT count FROM referrals_completed)                 AS referrals_completed,
+        (SELECT total FROM onboarding_stats)                    AS onboarding_total,
+        (SELECT completes FROM onboarding_stats)                AS onboarding_completes,
+        (SELECT en_cours FROM onboarding_stats)                  AS onboarding_en_cours,
+        (SELECT count FROM boutiques_premiere_vente)            AS boutiques_premiere_vente,
+        (SELECT produits_crees_total FROM catalogue_stats)      AS produits_crees_total,
+        (SELECT categories_crees_total FROM catalogue_stats)     AS categories_crees_total,
+        (SELECT count FROM boutiques_actives_7j)                AS boutiques_actives_7j,
+        (SELECT count FROM boutiques_actives_30j)                AS boutiques_actives_30j,
+        (SELECT ventes_aujourd_hui FROM ventes_periodes)         AS ventes_aujourd_hui,
+        (SELECT ventes_7j FROM ventes_periodes)                 AS ventes_7j,
+        (SELECT ventes_30j FROM ventes_periodes)                 AS ventes_30j,
+        (SELECT count FROM sub_free)                             AS free_count,
+        (SELECT count FROM sub_pro)                              AS pro_count,
+        (SELECT count FROM sub_pro_monthly)                      AS pro_monthly_count,
+        (SELECT count FROM sub_pro_lifetime)                     AS pro_lifetime_count,
+        (SELECT count FROM sub_pro_expired)                     AS pro_expired_count,
+        (SELECT count FROM sub_expirant_7j)                      AS abonnements_expirant_7j,
+        (SELECT count FROM boutiques_inactives)                  AS boutiques_inactives,
+        (SELECT count FROM alertes_stock_rupture)               AS alertes_stock_rupture,
+        (SELECT count FROM notifications_non_lues)              AS notifications_non_lues_total,
+        (SELECT count FROM erreurs_recentes)                    AS erreurs_recentes,
+        (SELECT COALESCE(json_agg(ev ORDER BY ev.date), '[]'::json) FROM evolution_ventes ev)    AS evolution_ventes,
+        (SELECT COALESCE(json_agg(ev ORDER BY ev.date), '[]'::json) FROM evolution_inscriptions ev) AS evolution_inscriptions,
+        (SELECT COALESCE(json_agg(tb ORDER BY tb.ventes_count DESC), '[]'::json) FROM top_boutiques tb) AS top_boutiques_par_ventes,
+        (SELECT COALESCE(json_agg(pv ORDER BY pv.count DESC), '[]'::json) FROM par_ville pv)    AS par_ville,
+        (SELECT COALESCE(json_agg(pp ORDER BY pp.count DESC), '[]'::json) FROM par_pays pp)      AS par_pays
+    `;
+
+    const res = await query<{
+      total_inscriptions: string;
+      inscrits_aujourd_hui: string;
+      inscrits_7j: string;
+      inscrits_30j: string;
+      referrals_completed: string;
+      onboarding_total: string;
+      onboarding_completes: string;
+      onboarding_en_cours: string;
+      boutiques_premiere_vente: string;
+      produits_crees_total: string;
+      categories_crees_total: string;
+      boutiques_actives_7j: string;
+      boutiques_actives_30j: string;
+      ventes_aujourd_hui: string;
+      ventes_7j: string;
+      ventes_30j: string;
+      free_count: string;
+      pro_count: string;
+      pro_monthly_count: string;
+      pro_lifetime_count: string;
+      pro_expired_count: string;
+      abonnements_expirant_7j: string;
+      boutiques_inactives: string;
+      alertes_stock_rupture: string;
+      notifications_non_lues_total: string;
+      erreurs_recentes: string;
+      evolution_ventes: Array<{ date: string; count: string; revenue: string }>;
+      evolution_inscriptions: Array<{ date: string; count: string }>;
+      top_boutiques_par_ventes: Array<{ tenant_name: string; ventes_count: string; revenue: string }>;
+      par_ville: Array<{ city: string; count: string }>;
+      par_pays: Array<{ country: string; count: string }>;
+    }>(sql, [SYSTEM_TENANT_ID]);
+
+    const row = res.rows[0]!;
+
+    // Casts explicites (PostgreSQL renvoie des string pour count(*) via le driver pg)
+    const total_inscriptions = parseInt(row.total_inscriptions, 10);
+    const inscrits_aujourd_hui = parseInt(row.inscrits_aujourd_hui, 10);
+    const inscrits_7j = parseInt(row.inscrits_7j, 10);
+    const inscrits_30j = parseInt(row.inscrits_30j, 10);
+    const referrals_completed = parseInt(row.referrals_completed, 10);
+
+    const onboarding_total = parseInt(row.onboarding_total, 10);
+    const onboarding_completes = parseInt(row.onboarding_completes, 10);
+    const onboarding_en_cours = parseInt(row.onboarding_en_cours, 10);
+
+    const free_count = parseInt(row.free_count, 10);
+    const pro_count = parseInt(row.pro_count, 10);
+    const pro_monthly_count = parseInt(row.pro_monthly_count, 10);
+    const pro_lifetime_count = parseInt(row.pro_lifetime_count, 10);
+    const pro_expired_count = parseInt(row.pro_expired_count, 10);
+
+    // --- Ratios / métriques dérivées ---
+    // Taux de complétion de l'onboarding (% des boutiques avec onboarding_completed = true)
+    const onboarding_completion_rate = onboarding_total > 0
+      ? Math.round((onboarding_completes / onboarding_total) * 10000) / 100 // 2 décimales
+      : 0;
+
+    // Conversion parrainage = proportion d'inscrits venus du parrainage
+    const conversion_parrainage = total_inscriptions > 0
+      ? Math.round((referrals_completed / total_inscriptions) * 10000) / 100
+      : 0;
+
+    // MRR = pro_monthly_count × 5000 (tarif mensuel PRO en FCFA)
+    const mrr = pro_monthly_count * 5000;
+
+    // Conversion FREE → PRO (% d'abonnements actifs qui sont PRO)
+    const total_sub_active = free_count + pro_count;
+    const conversion_free_to_pro = total_sub_active > 0
+      ? Math.round((pro_count / total_sub_active) * 10000) / 100
+      : 0;
+
+    // Churn = pro expired / (pro expired + pro actifs), en %
+    const pro_total = pro_count + pro_expired_count;
+    const churn_rate = pro_total > 0
+      ? Math.round((pro_expired_count / pro_total) * 10000) / 100
+      : 0;
+
+    // Normalisation des arrays (json_agg renvoie déjà des objects, on parse les counts)
+    const evolution_ventes = (row.evolution_ventes || []).map(d => ({
+      date: d.date,
+      count: parseInt(d.count, 10),
+      revenue: parseFloat(d.revenue)
+    }));
+    const evolution_inscriptions = (row.evolution_inscriptions || []).map(d => ({
+      date: d.date,
+      count: parseInt(d.count, 10)
+    }));
+    const top_boutiques_par_ventes = (row.top_boutiques_par_ventes || []).map(b => ({
+      tenant_name: b.tenant_name,
+      ventes_count: parseInt(b.ventes_count, 10),
+      revenue: parseFloat(b.revenue)
+    }));
+    const par_ville = (row.par_ville || []).map(v => ({
+      city: v.city,
+      count: parseInt(v.count, 10)
+    }));
+    const par_pays = (row.par_pays || []).map(p => ({
+      country: p.country,
+      count: parseInt(p.count, 10)
+    }));
+
+    return {
+      acquisition: {
+        total_inscriptions,
+        inscrits_aujourd_hui,
+        inscrits_7j,
+        inscrits_30j,
+        evolution_inscriptions,
+        conversion_parrainage
+      },
+      activation: {
+        onboarding_completion_rate,
+        onboarding_en_cours,
+        boutiques_premiere_vente: parseInt(row.boutiques_premiere_vente, 10),
+        produits_crees_total: parseInt(row.produits_crees_total, 10),
+        categories_crees_total: parseInt(row.categories_crees_total, 10)
+      },
+      engagement: {
+        boutiques_actives_7j: parseInt(row.boutiques_actives_7j, 10),
+        boutiques_actives_30j: parseInt(row.boutiques_actives_30j, 10),
+        ventes_aujourd_hui: parseInt(row.ventes_aujourd_hui, 10),
+        ventes_7j: parseInt(row.ventes_7j, 10),
+        ventes_30j: parseInt(row.ventes_30j, 10),
+        evolution_ventes,
+        top_boutiques_par_ventes
+      },
+      monetisation: {
+        free_count,
+        pro_count,
+        pro_monthly_count,
+        pro_lifetime_count,
+        mrr,
+        conversion_free_to_pro,
+        churn_rate
+      },
+      sante_plateforme: {
+        boutiques_inactives: parseInt(row.boutiques_inactives, 10),
+        abonnements_expirant_7j: parseInt(row.abonnements_expirant_7j, 10),
+        alertes_stock_rupture: parseInt(row.alertes_stock_rupture, 10),
+        notifications_non_lues_total: parseInt(row.notifications_non_lues_total, 10),
+        erreurs_recentes: parseInt(row.erreurs_recentes, 10)
+      },
+      repartition: {
+        par_ville,
+        par_pays
+      }
+    };
+  }
+
+  /**
    * Détail d'une boutique (SUPERADMIN) : infos tenant + abonnement + agrégats.
    */
   async getTenantDetail(tenantId: string) {

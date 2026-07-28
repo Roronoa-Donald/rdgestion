@@ -94,6 +94,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
     preHandler: [authenticate, authorize(['SUPERADMIN'])]
   }, (request: FastifyRequest, reply: FastifyReply) => adminController.getPlatformStats(request, reply));
 
+  // Dashboard analytics SuperAdmin — KPIs temps réel + évolution 30 jours (1 seul endpoint)
+  fastify.get('/dashboard', {
+    preHandler: [authenticate, authorize(['SUPERADMIN'])]
+  }, (request: FastifyRequest, reply: FastifyReply) => adminController.getDashboard(request, reply));
+
   // Détail d'une boutique (SUPERADMIN)
   fastify.get('/tenants/:id', {
     schema: {

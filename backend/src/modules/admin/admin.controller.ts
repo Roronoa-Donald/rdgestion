@@ -56,6 +56,12 @@ export class AdminController {
     return reply.send({ success: true, data: { stats } });
   }
 
+  // Dashboard analytics SuperAdmin — KPIs temps réel + évolution 30j (1 seul appel)
+  async getDashboard(request: FastifyRequest, reply: FastifyReply) {
+    const analytics = await adminService.getDashboardAnalytics();
+    return reply.send({ success: true, data: analytics });
+  }
+
   async getTenantDetail(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const detail = await adminService.getTenantDetail(request.params.id);
     return reply.send({ success: true, data: detail });
