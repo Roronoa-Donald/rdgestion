@@ -25,18 +25,18 @@ export class AdminView {
 
         <!-- KPIs -->
         <div id="dashboard-kpis" class="dashboard-kpis-grid">
-          ${Skeletons.generic(8, 'height: 90px; border-radius: var(--radius);')}
+          ${Array(8).fill('<div class="skeleton skeleton-row" style="height: 90px; border-radius: var(--radius);"></div>').join('')}
         </div>
 
         <!-- Graphiques -->
         <div class="dashboard-charts-row">
           <div class="card" style="flex: 1;">
             <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 16px;">Inscriptions (30 derniers jours)</h3>
-            <div id="dashboard-chart-inscriptions" style="height: 200px;">${Skeletons.generic(1, 'height: 200px;')}</div>
+            <div id="dashboard-chart-inscriptions" style="height: 200px;"><div class="skeleton skeleton-row" style="height: 200px;"></div></div>
           </div>
           <div class="card" style="flex: 1;">
             <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 16px;">Évolution des ventes (30 derniers jours)</h3>
-            <div id="dashboard-chart-ventes" style="height: 200px;">${Skeletons.generic(1, 'height: 200px;')}</div>
+            <div id="dashboard-chart-ventes" style="height: 200px;"><div class="skeleton skeleton-row" style="height: 200px;"></div></div>
           </div>
         </div>
 
@@ -44,19 +44,19 @@ export class AdminView {
         <div class="dashboard-drilldown-row">
           <div class="card" style="flex: 1;">
             <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Top 5 boutiques</h3>
-            <div id="dashboard-top-boutiques">${Skeletons.generic(5, 'height: 32px; margin-bottom: 6px;')}</div>
+            <div id="dashboard-top-boutiques">${Array(5).fill('<div class="skeleton skeleton-row" style="height: 32px; margin-bottom: 6px;"></div>').join('')}</div>
           </div>
           <div class="card" style="flex: 1;">
             <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Répartition par ville</h3>
-            <div id="dashboard-repartition">${Skeletons.generic(5, 'height: 32px; margin-bottom: 6px;')}</div>
+            <div id="dashboard-repartition">${Array(5).fill('<div class="skeleton skeleton-row" style="height: 32px; margin-bottom: 6px;"></div>').join('')}</div>
           </div>
           <div class="card" style="flex: 1;">
             <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Santé plateforme</h3>
-            <div id="dashboard-sante">${Skeletons.generic(5, 'height: 32px; margin-bottom: 6px;')}</div>
+            <div id="dashboard-sante">${Array(5).fill('<div class="skeleton skeleton-row" style="height: 32px; margin-bottom: 6px;"></div>').join('')}</div>
           </div>
           <div class="card" style="flex: 1;">
             <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Répartition par pays</h3>
-            <div id="dashboard-pays">${Skeletons.generic(5, 'height: 32px; margin-bottom: 6px;')}</div>
+            <div id="dashboard-pays">${Array(5).fill('<div class="skeleton skeleton-row" style="height: 32px; margin-bottom: 6px;"></div>').join('')}</div>
           </div>
         </div>
 
