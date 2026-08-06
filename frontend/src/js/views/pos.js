@@ -3,6 +3,7 @@ import { escapeAttr, escapeHtml, formatMoney, getCurrency } from '../utils.js';
 import { Toast, withLoading, Skeletons, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 import { notifyLocalStorageChange } from '../utils/onboarding.js';
+import { scanBarcode } from '../utils/barcode-scan.js';
 
 export class POSView {
   constructor() {
@@ -38,6 +39,10 @@ export class POSView {
         <div class="pos-catalog">
           <div class="pos-search-bar">
             <input type="text" id="pos-search-input" class="form-input" placeholder="Rechercher un produit ou SKU..." aria-label="Rechercher un produit ou SKU" style="flex: 1; font-size: 15px;">
+            <button id="btn-scan-pos" class="btn btn-primary" style="padding: 8px 14px; font-size: 13px; min-height: 44px; background-color: var(--accent-color);" title="Scanner un code-barre (option primaire)" aria-label="Scanner un code-barre">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M11 8v8"/><path d="M15 8v8"/></svg>
+              <span style="margin-left: 6px; vertical-align: middle;">Scanner</span>
+            </button>
           </div>
 
           <div class="pos-categories" id="pos-cat-tabs">
@@ -129,6 +134,15 @@ export class POSView {
     document.getElementById('pos-search-input').addEventListener('input', (e) => {
       this.searchQuery = e.target.value.trim();
       this.renderProducts();
+    });
+
+    // Bouton "Scanner" : scan caméra (option primaire d'ajout au panier).
+    // Au succès : lookup backend par barcode → ajout au panier + toast feedback.
+    // Le beep est joué par scanBarcode() au moment du scan réussi.
+    document.getElementById('btn-scan-pos').addEventListener('click', async () => {
+      const code = await scanBarcode({ title: 'Scanner un code-barre produit' });
+      if (!code) return; // annulé
+      await this.lookupAndAddByBarcode(code);
     });
 
     document.getElementById('btn-clear-cart').addEventListener('click', (e) => {
@@ -347,6 +361,39 @@ export class POSView {
         this.addToCart(prod);
       });
     });
+  }
+
+  /**
+   * Lookup backend d'un produit par code-barre (étiquette fabricant) puis ajout au panier.
+   * Utilisé après un scan caméra / scanner USB réussi.
+   * @param {string} code — code-barre lu
+   */
+  async lookupAndAddByBarcode(code) {
+    try {
+      const res = await API.products.getByBarcode(code);
+      const product = res.data;
+      if (!product) {
+        Toast.error('Aucun produit trouvé pour ce code-barre.');
+        return;
+      }
+      if (product.stock_quantity <= 0) {
+        Toast.error(`Produit en rupture de stock : ${product.name}`);
+        return;
+      }
+      // Si le produit n'est pas déjà dans le cache local (ex: catalogue pas encore chargé
+      // ou produit hors filtre), on l'ajoute pour que addToCart() le retrouve.
+      if (!this.products.find((p) => p.id === product.id)) {
+        this.products.push(product);
+      }
+      this.addToCart(product);
+      Toast.success(`${product.name} ajouté au panier`);
+    } catch (err) {
+      if (err.statusCode === 404) {
+        Toast.error('Aucun produit ne porte ce code-barre. Vérifiez qu\'il est bien enregistré.');
+      } else {
+        Toast.error(err.message || 'Erreur lors de la recherche du produit.');
+      }
+    }
   }
 
   addToCart(product) {

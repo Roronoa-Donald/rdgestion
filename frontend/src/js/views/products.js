@@ -3,6 +3,7 @@ import { escapeAttr, escapeHtml, formatMoney, getCurrency } from '../utils.js';
 import { Toast, withLoading, Skeletons, confirmModal, alertModal } from '../utils/ui.js';
 import { setupDialog } from '../utils/aria.js';
 import { notifyLocalStorageChange, isGuidedOnboardingDone, guidedOnboardingActive } from '../utils/onboarding.js';
+import { scanBarcode } from '../utils/barcode-scan.js';
 
 export class ProductsView {
   constructor(queryParams = {}) {
@@ -338,6 +339,17 @@ export class ProductsView {
                 </div>
 
                 <div class="form-group">
+                  <label class="form-label">Code-barre (Facultatif)</label>
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="prod-barcode" class="form-input" value="${escapeAttr(product?.barcode || '')}" placeholder="Scanner ou saisir l'étiquette produit" inputmode="numeric" style="flex: 1;">
+                    <button type="button" id="btn-scan-barcode" class="btn btn-secondary" style="padding: 8px 12px; min-width: 44px; min-height: 44px;" title="Scanner le code-barre avec la caméra" aria-label="Scanner le code-barre">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M11 8v8"/><path d="M15 8v8"/></svg>
+                    </button>
+                  </div>
+                  <small style="color: var(--text-secondary);">Étiquette fabricant (EAN, QR…). Sert au scan rapide lors de la vente.</small>
+                </div>
+
+                <div class="form-group">
                   <label class="form-label">Prix d'achat (${getCurrency()})</label>
                   <input type="number" id="prod-price-purchase" class="form-input" value="${product?.purchase_price || ''}" min="0.01" step="0.01" required>
                 </div>
@@ -403,6 +415,15 @@ export class ProductsView {
     const dialogEl = container.querySelector('.modal-content');
     setupDialog(dialogEl, { labelledbyId: 'product-modal-title', closeFn });
 
+    // Scanner un code-barre via la caméra pour pré-remplir le champ
+    document.getElementById('btn-scan-barcode').addEventListener('click', async () => {
+      const code = await scanBarcode({ title: 'Scanner le code-barre du produit' });
+      if (code) {
+        document.getElementById('prod-barcode').value = code;
+        Toast.success('Code-barre lu : ' + code);
+      }
+    });
+
     // Gérer l'affichage conditionnel de la date d'expiration
     const checkbox = document.getElementById('prod-has-expiry');
     const expiryContainer = document.getElementById('expiry-date-container');
@@ -422,6 +443,8 @@ export class ProductsView {
       formData.append('name', document.getElementById('prod-name').value.trim());
       formData.append('category_id', document.getElementById('prod-category').value);
       formData.append('sku', document.getElementById('prod-sku').value.trim());
+      // Code-barre (étiquette fabricant) — optionnel, nullable côté backend
+      formData.append('barcode', document.getElementById('prod-barcode').value.trim());
       formData.append('purchase_price', document.getElementById('prod-price-purchase').value);
       formData.append('sell_price', document.getElementById('prod-price-sell').value);
 

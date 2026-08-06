@@ -228,6 +228,23 @@ export const API = {
     async get(id) {
       return request(`/products/${id}`);
     },
+    /**
+     * Recherche un produit actif par son code-barre (étiquette fabricant).
+     * Utilisé par le POS lors d'un scan caméra / scanner USB.
+     * @param {string} code — code-barre lu (EAN, QR, etc.)
+     * @returns {Promise<{ success: true, data: Product }>}
+     * @throws {Error & { statusCode: 404 }} si aucun produit ne porte ce barcode
+     * @throws {Error & { code: 'BARCODE_EMPTY' }} si code vide
+     */
+    async getByBarcode(code) {
+      const trimmed = String(code || '').trim();
+      if (!trimmed) {
+        const err = new Error('Code-barre vide.');
+        err.code = 'BARCODE_EMPTY';
+        throw err;
+      }
+      return request(`/products/barcode/${encodeURIComponent(trimmed)}`);
+    },
     async create(formData) {
       return request('/products', {
         method: 'POST',
