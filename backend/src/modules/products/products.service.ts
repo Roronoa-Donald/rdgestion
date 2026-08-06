@@ -120,6 +120,29 @@ export class ProductsService {
   }
 
   /**
+   * Récupère un produit par son code-barres (avec isolation de tenant).
+   * Utilisé par le POS pour retrouver un produit scanné (EAN-13, UPC-A, QR, etc.).
+   */
+  async getProductByBarcode(tenantId: string, barcode: string): Promise<Product & { category_name: string | null }> {
+    const res = await query<Product & { category_name: string | null }>(
+      `SELECT p.*, c.name as category_name
+       FROM products p
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.tenant_id = $1 AND p.barcode = $2 AND p.is_deleted = FALSE`,
+      [tenantId, barcode]
+    );
+
+    const product = res.rows[0];
+    if (!product) {
+      const err = new Error('Aucun produit trouvé avec ce code-barres.');
+      (err as any).statusCode = 404;
+      throw err;
+    }
+
+    return product;
+  }
+
+  /**
    * Crée un nouveau produit.
    */
   async createProduct(tenantId: string, data: any, userId: string, clientIp: string, userAgent: string): Promise<Product> {
@@ -158,14 +181,25 @@ export class ProductsService {
       throw err;
     }
 
+    // 3.bis Validation de l'unicité du barcode dans ce tenant (si fourni)
+    const barcode = data.barcode ? data.barcode.trim() : null;
+    if (barcode) {
+      const barcodeCheck = await query('SELECT id FROM products WHERE tenant_id = $1 AND barcode = $2 AND is_deleted = FALSE', [tenantId, barcode]);
+      if (barcodeCheck.rows.length > 0) {
+        const err = new Error(`Le code-barre "${barcode}" est déjà utilisé par un autre produit.`);
+        (err as any).statusCode = 409;
+        throw err;
+      }
+    }
+
     return transaction(async (client) => {
       // 4. Insérer le produit en BDD
       const insertQuery = `
         INSERT INTO products (
-          tenant_id, category_id, name, sku, purchase_price, sell_price, 
+          tenant_id, category_id, name, sku, barcode, purchase_price, sell_price, 
           stock_quantity, stock_threshold, image_url, description, has_expiry, expiry_date
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `;
 
@@ -176,6 +210,7 @@ export class ProductsService {
         data.category_id || null,
         data.name.trim(),
         sku,
+        barcode,
         data.purchase_price,
         data.sell_price,
         data.stock_quantity,
@@ -268,14 +303,32 @@ export class ProductsService {
       }
     }
 
+    // 3.bis Validation de l'unicité du barcode si modifié (et non null)
+    // On normalise: trim + null si vide. Si barcode est fourni dans data,
+    // on l'utilise; sinon on conserve la valeur actuelle.
+    let barcode: string | null;
+    if (data.barcode !== undefined) {
+      barcode = data.barcode ? (data.barcode as string).trim() : null;
+    } else {
+      barcode = currentProduct.barcode;
+    }
+    if (barcode && barcode !== currentProduct.barcode) {
+      const barcodeCheck = await query('SELECT id FROM products WHERE tenant_id = $1 AND barcode = $2 AND id != $3 AND is_deleted = FALSE', [tenantId, barcode, id]);
+      if (barcodeCheck.rows.length > 0) {
+        const err = new Error(`Le code-barre "${barcode}" est déjà utilisé par un autre produit.`);
+        (err as any).statusCode = 409;
+        throw err;
+      }
+    }
+
     return transaction(async (client) => {
       // 4. Mettre à jour le produit
       const updateQuery = `
         UPDATE products
-        SET category_id = $1, name = $2, sku = $3, purchase_price = $4, sell_price = $5,
-            stock_quantity = $6, stock_threshold = $7, image_url = $8, description = $9,
-            has_expiry = $10, expiry_date = $11, updated_at = CURRENT_TIMESTAMP
-        WHERE tenant_id = $12 AND id = $13
+        SET category_id = $1, name = $2, sku = $3, barcode = $4, purchase_price = $5, sell_price = $6,
+            stock_quantity = $7, stock_threshold = $8, image_url = $9, description = $10,
+            has_expiry = $11, expiry_date = $12, updated_at = CURRENT_TIMESTAMP
+        WHERE tenant_id = $13 AND id = $14
         RETURNING *
       `;
 
@@ -283,6 +336,7 @@ export class ProductsService {
         data.category_id !== undefined ? (data.category_id || null) : currentProduct.category_id,
         data.name !== undefined ? data.name.trim() : currentProduct.name,
         sku,
+        barcode,
         purchasePrice,
         sellPrice,
         data.stock_quantity !== undefined ? data.stock_quantity : currentProduct.stock_quantity,
@@ -300,8 +354,8 @@ export class ProductsService {
       // 5. Calculer le différentiel de modification pour le journal d'activité (Audit Log)
       const changes: Record<string, { old: any, new: any }> = {};
       const fields = [
-        'category_id', 'name', 'sku', 'purchase_price', 'sell_price', 
-        'stock_quantity', 'stock_threshold', 'image_url', 'description', 
+        'category_id', 'name', 'sku', 'barcode', 'purchase_price', 'sell_price',
+        'stock_quantity', 'stock_threshold', 'image_url', 'description',
         'has_expiry', 'expiry_date'
       ];
       

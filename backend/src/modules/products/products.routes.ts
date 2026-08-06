@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { productsController } from './products.controller';
 import { stockController } from './stock.controller';
-import { getProductsSchema, productIdParamSchema } from './products.schema';
+import { getProductsSchema, productIdParamSchema, productBarcodeParamSchema } from './products.schema';
 import { createStockMovementSchema, getStockMovementsSchema } from './stock.schema';
 import { authenticate } from '../../middlewares/auth';
 import { authorize } from '../../middlewares/rbac';
@@ -22,6 +22,13 @@ export async function productsRoutes(fastify: FastifyInstance) {
   fastify.get('/trash', {
     preHandler: [authenticate, authorize(['ADMIN']), checkTenantActive]
   }, (request: FastifyRequest, reply: FastifyReply) => productsController.listTrash(request, reply));
+
+  // Récupérer un produit par son code-barres (Accessible par ADMIN et SELLER pour le POS)
+  // ⚠️ Doit être déclaré AVANT /:id pour éviter le matching de "barcode" comme ID UUID.
+  fastify.get('/barcode/:code', {
+    schema: productBarcodeParamSchema,
+    preHandler: [authenticate, authorize(['ADMIN', 'SELLER']), checkTenantActive]
+  }, (request: FastifyRequest<any>, reply: FastifyReply) => productsController.getByBarcode(request, reply));
 
   // Récupérer un produit par son ID (Accessible par ADMIN et SELLER)
   fastify.get('/:id', {

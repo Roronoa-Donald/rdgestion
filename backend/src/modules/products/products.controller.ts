@@ -40,6 +40,16 @@ export class ProductsController {
   }
 
   /**
+   * Récupère un produit par son code-barres (GET /api/products/barcode/:code)
+   * Utilisé par le POS pour scanner une étiquette fabricant (EAN-13, QR, etc.).
+   */
+  async getByBarcode(request: FastifyRequest<{ Params: { code: string } }>, reply: FastifyReply) {
+    const tenantId = request.currentUser!.tenantId;
+    const product = await productsService.getProductByBarcode(tenantId, request.params.code);
+    return reply.send({ success: true, data: product });
+  }
+
+  /**
    * Crée un produit (POST /api/products)
    * Upload de la photo vers Cloudinary (URL stockée en BDD).
    */

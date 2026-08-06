@@ -146,6 +146,7 @@ export interface Product {
   category_id: string | null;
   name: string;
   sku: string | null;
+  barcode: string | null;
   purchase_price: number;
   sell_price: number;
   stock_quantity: number;

@@ -33,6 +33,21 @@ export const productIdParamSchema: FastifySchema = {
 };
 
 /**
+ * Schéma pour valider le code-barres dans les paramètres de la route
+ * /api/products/barcode/:code — pas de pattern strict (EAN-13, UPC-A, QR, etc.).
+ */
+export const productBarcodeParamSchema: FastifySchema = {
+  params: {
+    type: 'object',
+    required: ['code'],
+    properties: {
+      code: { type: 'string', minLength: 1, maxLength: 100 }
+    },
+    additionalProperties: false
+  }
+};
+
+/**
  * Définition du schéma de validation du corps d'un produit (utilisable en JSON ou programmatiquement)
  */
 export const productBodySchema = {
@@ -42,6 +57,7 @@ export const productBodySchema = {
     name: { type: 'string', minLength: 1, maxLength: 150 },
     category_id: { type: ['string', 'null'], pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' },
     sku: { type: ['string', 'null'], maxLength: 50 },
+    barcode: { type: ['string', 'null'], minLength: 1, maxLength: 100 },
     purchase_price: { type: 'number', minimum: 0.01 },
     sell_price: { type: 'number', minimum: 0.01 },
     stock_quantity: { type: 'integer', minimum: 0 },
